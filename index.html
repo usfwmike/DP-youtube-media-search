@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="p-6">
-    <h1 class="text-2xl font-bold">Search Media by Date</h1>
+    <h1 class="text-2xl font-bold">Search Media by Date - Updated March 1, 2025 @ 5:05 PM</h1>
     <label>Month: 
         <select id="month" class="border p-2">
             <option value="1">January</option>
@@ -45,14 +45,18 @@
 
         async function searchMedia() {
             const month = document.getElementById("month").value;
-            const day = document.getElementById("day").value;
+            let day = document.getElementById("day").value;
 
-            if (!day) {
+            if (!day || day < 1 || day > 31) {
                 alert("Please enter a valid day.");
                 return;
             }
 
-            const url = `${workerUrl}?month=${month}&day=${day}`;
+            // Ensure the month and day are always two digits
+            const formattedMonth = month.padStart(2, '0');
+            const formattedDay = day.padStart(2, '0');
+
+            const url = `${workerUrl}?month=${formattedMonth}&day=${formattedDay}`;
             try {
                 const response = await fetch(url);
                 if (!response.ok) {
