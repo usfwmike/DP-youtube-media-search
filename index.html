@@ -1,1 +1,80 @@
-<h1>Hello, GitHub Pages!</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Search</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-6">
+    <h1 class="text-2xl font-bold">Search Media by Date</h1>
+    <label>Month: 
+        <select id="month" class="border p-2">
+            <option value="1">January</option>
+            <option value="2">February</option>
+            <option value="3">March</option>
+            <option value="4">April</option>
+            <option value="5">May</option>
+            <option value="6">June</option>
+            <option value="7">July</option>
+            <option value="8">August</option>
+            <option value="9">September</option>
+            <option value="10">October</option>
+            <option value="11">November</option>
+            <option value="12">December</option>
+        </select>
+    </label>
+    <label>Day: 
+        <input type="number" id="day" min="1" max="31" class="border p-2 w-20">
+    </label>
+    <button onclick="searchMedia()" class="bg-blue-500 text-white px-4 py-2 ml-2">Search</button>
+
+    <table class="border-collapse border border-gray-400 w-full mt-4">
+        <thead>
+            <tr class="bg-gray-200">
+                <th class="border p-2">Title</th>
+                <th class="border p-2">Published At</th>
+                <th class="border p-2">URL</th>
+            </tr>
+        </thead>
+        <tbody id="results"></tbody>
+    </table>
+
+    <script>
+        const workerUrl = "https://bc88c4df-crimson-shape-c0f8.usedsubmarine.workers.dev/";
+
+        async function searchMedia() {
+            const month = document.getElementById("month").value;
+            const day = document.getElementById("day").value;
+
+            if (!day) {
+                alert("Please enter a valid day.");
+                return;
+            }
+
+            const url = `${workerUrl}?month=${month}&day=${day}`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error("Failed to fetch data");
+                }
+                const data = await response.json();
+
+                let tableBody = document.getElementById("results");
+                tableBody.innerHTML = "";
+                data.forEach(item => {
+                    tableBody.innerHTML += `<tr>
+                        <td class="border p-2">${item.title}</td>
+                        <td class="border p-2">${item.published_at}</td>
+                        <td class="border p-2"><a href="${item.url}" class="text-blue-500" target="_blank">View</a></td>
+                    </tr>`;
+                });
+
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Error fetching data. Please try again.");
+            }
+        }
+    </script>
+</body>
+</html>
