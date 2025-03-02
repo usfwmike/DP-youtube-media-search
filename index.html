@@ -12,7 +12,7 @@
     <label>Date:  
         <input type="date" id="dateInput" class="border p-2">
     </label>
-    <button onclick="searchMedia()" class="bg-blue-500 text-white px-4 py-2 ml-2">Search</button>
+    <button id="searchButton" onclick="searchMedia()" class="bg-blue-500 text-white px-4 py-2 ml-2">Search</button>
 
     <table class="border-collapse border border-gray-400 w-full mt-4">
         <thead>
@@ -29,6 +29,7 @@
         const workerUrl = "https://crimson-shape-c0f8.usedsubmarine.workers.dev/";
 
         async function searchMedia() {
+            const button = document.getElementById("searchButton");
             const dateInput = document.getElementById("dateInput").value;
             
             if (!dateInput) {
@@ -36,8 +37,12 @@
                 return;
             }
 
-            // Send date in YYYY-MM-DD format directly
-            const url = `${workerUrl}?date=${dateInput}`;
+            // Disable button and update text while fetching
+            button.disabled = true;
+            button.innerText = "Searching...";
+
+            // Cache busting with timestamp
+            const url = `${workerUrl}?date=${dateInput}&t=${Date.now()}`;
 
             try {
                 const response = await fetch(url);
@@ -59,6 +64,10 @@
             } catch (error) {
                 console.error("Error:", error);
                 alert("Error fetching data. Please try again.");
+            } finally {
+                // Re-enable button and reset text after fetching
+                button.disabled = false;
+                button.innerText = "Search";
             }
         }
     </script>
