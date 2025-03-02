@@ -8,24 +8,9 @@
 </head>
 <body class="p-6">
     <h1 class="text-2xl font-bold">Search Media by Date - Updated March 1, 2025 @ 5:05 PM</h1>
-    <label>Month: 
-        <select id="month" class="border p-2">
-            <option value="1">January</option>
-            <option value="2">February</option>
-            <option value="3">March</option>
-            <option value="4">April</option>
-            <option value="5">May</option>
-            <option value="6">June</option>
-            <option value="7">July</option>
-            <option value="8">August</option>
-            <option value="9">September</option>
-            <option value="10">October</option>
-            <option value="11">November</option>
-            <option value="12">December</option>
-        </select>
-    </label>
-    <label>Day: 
-        <input type="number" id="day" min="1" max="31" class="border p-2 w-20">
+    
+    <label>Date:  
+        <input type="date" id="dateInput" class="border p-2">
     </label>
     <button onclick="searchMedia()" class="bg-blue-500 text-white px-4 py-2 ml-2">Search</button>
 
@@ -44,19 +29,16 @@
         const workerUrl = "https://bc88c4df-crimson-shape-c0f8.usedsubmarine.workers.dev/";
 
         async function searchMedia() {
-            const month = document.getElementById("month").value;
-            let day = document.getElementById("day").value;
-
-            if (!day || day < 1 || day > 31) {
-                alert("Please enter a valid day.");
+            const dateInput = document.getElementById("dateInput").value;
+            
+            if (!dateInput) {
+                alert("Please select a date.");
                 return;
             }
 
-            // Ensure the month and day are always two digits
-            const formattedMonth = month.padStart(2, '0');
-            const formattedDay = day.padStart(2, '0');
+            // Send date in YYYY-MM-DD format directly
+            const url = `${workerUrl}?date=${dateInput}`;
 
-            const url = `${workerUrl}?month=${formattedMonth}&day=${formattedDay}`;
             try {
                 const response = await fetch(url);
                 if (!response.ok) {
