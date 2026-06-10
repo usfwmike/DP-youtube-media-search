@@ -61,6 +61,26 @@
                 </button>
             </div>
 
+            <div class="border-t pt-4 mb-4">
+                <p class="font-semibold mb-2">Filters:</p>
+
+                <div class="flex flex-wrap gap-4">
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="fullInterviewOnly" class="h-4 w-4">
+                        <span>Full Interviews only</span>
+                    </label>
+
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="excludeOpens" class="h-4 w-4">
+                        <span>Exclude Opens / Cold Opens</span>
+                    </label>
+                </div>
+
+                <p class="text-sm text-gray-600 mt-2">
+                    These filters apply to the results shown on this page.
+                </p>
+            </div>
+
             <div class="border-t pt-4">
                 <p class="font-semibold mb-2">Quick Searches:</p>
 
@@ -85,7 +105,7 @@
                     <button onclick="quickSearch('Paulie')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-3 py-1 rounded text-sm">Paulie</button>
                     <button onclick="quickSearch('Marvin')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-3 py-1 rounded text-sm">Marvin</button>
                     <button onclick="quickSearch('Dylan')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-3 py-1 rounded text-sm">Dylan</button>
-                    
+
                     <button onclick="quickSearch('Full Interview')" class="bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 rounded text-sm">Full Interview</button>
                     <button onclick="quickSearch('DP Show Open')" class="bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 rounded text-sm">DP Show Open</button>
                     <button onclick="quickSearch('DP Cold Open')" class="bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 rounded text-sm">DP Cold Open</button>
@@ -177,6 +197,54 @@
             }
 
             return "No results found.";
+        }
+
+        function resultMatchesFilters(item) {
+            const fullInterviewOnly = document.getElementById("fullInterviewOnly").checked;
+            const excludeOpens = document.getElementById("excludeOpens").checked;
+
+            const title = (item.title || "").toLowerCase();
+            const description = (item.description || "").toLowerCase();
+            const combinedText = `${title} ${description}`;
+
+            if (fullInterviewOnly && !combinedText.includes("full interview")) {
+                return false;
+            }
+
+            if (excludeOpens) {
+                const openTerms = [
+                    "dp show open",
+                    "dp cold open",
+                    "show open",
+                    "cold open"
+                ];
+
+                const hasOpenTerm = openTerms.some(term => combinedText.includes(term));
+
+                if (hasOpenTerm) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        function describeActiveFilters() {
+            const activeFilters = [];
+
+            if (document.getElementById("fullInterviewOnly").checked) {
+                activeFilters.push("Full Interviews only");
+            }
+
+            if (document.getElementById("excludeOpens").checked) {
+                activeFilters.push("Exclude Opens / Cold Opens");
+            }
+
+            if (activeFilters.length === 0) {
+                return "";
+            }
+
+            return ` Active filters: ${activeFilters.join(", ")}.`;
         }
 
         async function copyText(text, button) {
@@ -303,15 +371,35 @@
                     return;
                 }
 
-                if (searchType === "onThisDay") {
-                    statusMessage.innerText = `Found ${data.length} result(s) from this day in DP Show history: ${monthDay}.`;
-                } else if (searchType === "recent") {
-                    statusMessage.innerText = `Found ${data.length} recently added result(s).`;
-                } else {
-                    statusMessage.innerText = `Found ${data.length} result(s).`;
+                const filteredData = data.filter(resultMatchesFilters);
+                const filterText = describeActiveFilters();
+
+                if (filteredData.length === 0) {
+                    statusMessage.innerText = `Found ${data.length} result(s), but 0 matched the active filters.${filterText}`;
+
+                    resultsDiv.innerHTML = `
+                        <div class="bg-white shadow rounded p-4 text-gray-700">
+                            Results were found, but none matched your active filters.
+                        </div>
+                    `;
+                    return;
                 }
 
-                data.forEach(item => {
+                if (searchType === "onThisDay") {
+                    statusMessage.innerText = `Found ${filteredData.length} result(s) from this day in DP Show history: ${monthDay}.`;
+                } else if (searchType === "recent") {
+                    statusMessage.innerText = `Found ${filteredData.length} recently added result(s).`;
+                } else {
+                    statusMessage.innerText = `Found ${filteredData.length} result(s).`;
+                }
+
+                if (filteredData.length !== data.length) {
+                    statusMessage.innerText += ` Showing ${filteredData.length} of ${data.length} after filters.`;
+                }
+
+                statusMessage.innerText += filterText;
+
+                filteredData.forEach(item => {
                     const safeTitle = escapeHtml(item.title || "");
                     const safeDescription = escapeHtml(item.description || "");
                     const published = formatDateTime(item.published_at);
@@ -393,6 +481,8 @@
         function clearSearch() {
             document.getElementById("dateInput").value = "";
             document.getElementById("keywordInput").value = "";
+            document.getElementById("fullInterviewOnly").checked = false;
+            document.getElementById("excludeOpens").checked = false;
             document.getElementById("statusMessage").innerText = "";
             document.getElementById("results").innerHTML = "";
         }
