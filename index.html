@@ -11,7 +11,7 @@
         <h1 class="text-3xl font-bold mb-2">Dan Patrick Show Media Search</h1>
 
         <p class="text-gray-700 mb-6">
-            Search by date, keyword, or both. You can also view the most recently added videos.
+            Search by date, keyword, or both. You can also view recently added videos or search what happened on this day across DP Show history.
         </p>
 
         <div class="flex flex-wrap items-end gap-4 mb-4">
@@ -36,6 +36,13 @@
                 class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
             >
                 Search
+            </button>
+
+            <button 
+                onclick="showOnThisDay()" 
+                class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded"
+            >
+                On This Day
             </button>
 
             <button 
@@ -103,9 +110,21 @@
                 .replaceAll("'", "&#039;");
         }
 
-        function buildNoResultsMessage(dateInput, keywordInput, isRecent) {
-            if (isRecent) {
+        function getTodayMonthDay() {
+            const today = new Date();
+            const month = String(today.getMonth() + 1).padStart(2, "0");
+            const day = String(today.getDate()).padStart(2, "0");
+
+            return `${month}-${day}`;
+        }
+
+        function buildNoResultsMessage(dateInput, keywordInput, searchType, monthDay) {
+            if (searchType === "recent") {
                 return "No recently added videos found.";
+            }
+
+            if (searchType === "onThisDay") {
+                return `No videos found for this day in DP Show history: ${monthDay}.`;
             }
 
             if (dateInput && keywordInput) {
@@ -144,7 +163,17 @@
 
             params.append("t", Date.now());
 
-            await runSearch(params, false);
+            await runSearch(params, "normal", "");
+        }
+
+        async function showOnThisDay() {
+            const monthDay = getTodayMonthDay();
+
+            const params = new URLSearchParams();
+            params.append("month_day", monthDay);
+            params.append("t", Date.now());
+
+            await runSearch(params, "onThisDay", monthDay);
         }
 
         async function showRecentlyAdded() {
@@ -152,10 +181,10 @@
             params.append("recent", "true");
             params.append("t", Date.now());
 
-            await runSearch(params, true);
+            await runSearch(params, "recent", "");
         }
 
-        async function runSearch(params, isRecent) {
+        async function runSearch(params, searchType, monthDay) {
             const button = document.getElementById("searchButton");
             const statusMessage = document.getElementById("statusMessage");
             const tableBody = document.getElementById("results");
@@ -181,7 +210,7 @@
                 tableBody.innerHTML = "";
 
                 if (!data || data.length === 0 || data[0].title === "No results found") {
-                    const message = buildNoResultsMessage(dateInput, keywordInput, isRecent);
+                    const message = buildNoResultsMessage(dateInput, keywordInput, searchType, monthDay);
                     statusMessage.innerText = message;
 
                     tableBody.innerHTML = `
@@ -192,7 +221,13 @@
                     return;
                 }
 
-                statusMessage.innerText = `Found ${data.length} result(s).`;
+                if (searchType === "onThisDay") {
+                    statusMessage.innerText = `Found ${data.length} result(s) from this day in DP Show history: ${monthDay}.`;
+                } else if (searchType === "recent") {
+                    statusMessage.innerText = `Found ${data.length} recently added result(s).`;
+                } else {
+                    statusMessage.innerText = `Found ${data.length} result(s).`;
+                }
 
                 data.forEach(item => {
                     const safeTitle = escapeHtml(item.title || "");
