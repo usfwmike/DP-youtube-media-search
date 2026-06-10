@@ -14,68 +14,57 @@
             Search by date, keyword, or both. You can also view recently added videos or search what happened on this day across DP Show history.
         </p>
 
-        <div class="flex flex-wrap items-end gap-4 mb-4">
-            <label class="block">
-                <span class="font-semibold">Date:</span>
-                <input type="date" id="dateInput" class="border p-2 ml-2 rounded">
-            </label>
+        <div class="bg-white shadow rounded p-4 mb-5">
+            <div class="flex flex-wrap items-end gap-4">
+                <label class="block">
+                    <span class="font-semibold">Date:</span>
+                    <input type="date" id="dateInput" class="border p-2 ml-2 rounded">
+                </label>
 
-            <label class="block">
-                <span class="font-semibold">Keyword:</span>
-                <input 
-                    type="text" 
-                    id="keywordInput" 
-                    class="border p-2 ml-2 rounded w-72" 
-                    placeholder="LeBron, Cubs, Jordan..."
+                <label class="block">
+                    <span class="font-semibold">Keyword:</span>
+                    <input 
+                        type="text" 
+                        id="keywordInput" 
+                        class="border p-2 ml-2 rounded w-72" 
+                        placeholder="LeBron, Cubs, Jordan..."
+                    >
+                </label>
+
+                <button 
+                    id="searchButton" 
+                    onclick="searchMedia()" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
                 >
-            </label>
+                    Search
+                </button>
 
-            <button 
-                id="searchButton" 
-                onclick="searchMedia()" 
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-            >
-                Search
-            </button>
+                <button 
+                    onclick="showOnThisDay()" 
+                    class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded"
+                >
+                    On This Day
+                </button>
 
-            <button 
-                onclick="showOnThisDay()" 
-                class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded"
-            >
-                On This Day
-            </button>
+                <button 
+                    onclick="showRecentlyAdded()" 
+                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                >
+                    Recently Added
+                </button>
 
-            <button 
-                onclick="showRecentlyAdded()" 
-                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-            >
-                Recently Added
-            </button>
-
-            <button 
-                onclick="clearSearch()" 
-                class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
-            >
-                Clear
-            </button>
+                <button 
+                    onclick="clearSearch()" 
+                    class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+                >
+                    Clear
+                </button>
+            </div>
         </div>
 
         <p id="statusMessage" class="mb-4 text-gray-800 font-medium"></p>
 
-        <div class="overflow-x-auto bg-white shadow rounded">
-            <table class="border-collapse border border-gray-300 w-full">
-                <thead>
-                    <tr class="bg-gray-200">
-                        <th class="border p-2 text-left w-40">Thumbnail</th>
-                        <th class="border p-2 text-left">Title / Description</th>
-                        <th class="border p-2 text-left w-48">Published</th>
-                        <th class="border p-2 text-left w-32">Date</th>
-                        <th class="border p-2 text-left w-24">URL</th>
-                    </tr>
-                </thead>
-                <tbody id="results"></tbody>
-            </table>
-        </div>
+        <div id="results" class="space-y-4"></div>
     </div>
 
     <script>
@@ -96,6 +85,22 @@
                 day: "numeric",
                 hour: "numeric",
                 minute: "2-digit"
+            });
+        }
+
+        function formatDateOnly(value) {
+            if (!value) return "";
+
+            const date = new Date(value + "T00:00:00");
+
+            if (isNaN(date.getTime())) {
+                return value;
+            }
+
+            return date.toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "long",
+                day: "numeric"
             });
         }
 
@@ -140,6 +145,46 @@
             }
 
             return "No results found.";
+        }
+
+        async function copyText(text, button) {
+            try {
+                await navigator.clipboard.writeText(text);
+
+                const originalText = button.innerText;
+                button.innerText = "Copied!";
+                button.classList.add("bg-green-700");
+
+                setTimeout(() => {
+                    button.innerText = originalText;
+                    button.classList.remove("bg-green-700");
+                }, 1200);
+            } catch (error) {
+                alert("Could not copy to clipboard.");
+                console.error("Clipboard error:", error);
+            }
+        }
+
+        function buildSocialPost(item) {
+            const title = item.title || "DP Show archive find";
+            const dateText = item.date ? formatDateOnly(item.date) : "";
+            const url = item.url || "";
+
+            if (dateText) {
+                return `DP Show archive find:\n\n${dateText} — ${title}\n\nWatch: ${url}`;
+            }
+
+            return `DP Show archive find:\n\n${title}\n\nWatch: ${url}`;
+        }
+
+        async function copyLinkFromButton(button) {
+            const url = button.getAttribute("data-url");
+            await copyText(url, button);
+        }
+
+        async function copySocialPostFromButton(button) {
+            const post = button.getAttribute("data-post");
+            await copyText(post, button);
         }
 
         async function searchMedia() {
@@ -187,14 +232,14 @@
         async function runSearch(params, searchType, monthDay) {
             const button = document.getElementById("searchButton");
             const statusMessage = document.getElementById("statusMessage");
-            const tableBody = document.getElementById("results");
+            const resultsDiv = document.getElementById("results");
             const dateInput = document.getElementById("dateInput").value;
             const keywordInput = document.getElementById("keywordInput").value.trim();
 
             button.disabled = true;
             button.innerText = "Searching...";
             statusMessage.innerText = "Searching...";
-            tableBody.innerHTML = "";
+            resultsDiv.innerHTML = "";
 
             const url = `${workerUrl}?${params.toString()}`;
 
@@ -207,16 +252,16 @@
 
                 const data = await response.json();
 
-                tableBody.innerHTML = "";
+                resultsDiv.innerHTML = "";
 
                 if (!data || data.length === 0 || data[0].title === "No results found") {
                     const message = buildNoResultsMessage(dateInput, keywordInput, searchType, monthDay);
                     statusMessage.innerText = message;
 
-                    tableBody.innerHTML = `
-                        <tr>
-                            <td class="border p-3" colspan="5">${message}</td>
-                        </tr>
+                    resultsDiv.innerHTML = `
+                        <div class="bg-white shadow rounded p-4 text-gray-700">
+                            ${message}
+                        </div>
                     `;
                     return;
                 }
@@ -233,28 +278,68 @@
                     const safeTitle = escapeHtml(item.title || "");
                     const safeDescription = escapeHtml(item.description || "");
                     const published = formatDateTime(item.published_at);
+                    const displayDate = item.date ? formatDateOnly(item.date) : "";
                     const thumbnail = item.thumbnail || "";
-                    const url = item.url || "#";
+                    const itemUrl = item.url || "#";
+                    const socialPost = buildSocialPost(item);
 
-                    tableBody.innerHTML += `
-                        <tr class="align-top">
-                            <td class="border p-2">
-                                ${
-                                    thumbnail 
-                                        ? `<img src="${thumbnail}" alt="Thumbnail" class="w-36 rounded">`
-                                        : `<span class="text-gray-400">No thumbnail</span>`
-                                }
-                            </td>
-                            <td class="border p-2">
-                                <div class="font-semibold mb-1">${safeTitle}</div>
-                                <div class="text-sm text-gray-700">${safeDescription}</div>
-                            </td>
-                            <td class="border p-2">${published}</td>
-                            <td class="border p-2">${item.date || ""}</td>
-                            <td class="border p-2">
-                                <a href="${url}" class="text-blue-600 hover:underline" target="_blank">View</a>
-                            </td>
-                        </tr>
+                    resultsDiv.innerHTML += `
+                        <div class="bg-white shadow rounded overflow-hidden">
+                            <div class="flex flex-col md:flex-row">
+                                <div class="md:w-64 bg-gray-100 flex items-center justify-center p-3">
+                                    ${
+                                        thumbnail 
+                                            ? `<img src="${thumbnail}" alt="Thumbnail" class="w-full max-w-60 rounded">`
+                                            : `<span class="text-gray-400">No thumbnail</span>`
+                                    }
+                                </div>
+
+                                <div class="flex-1 p-4">
+                                    <h2 class="text-xl font-bold mb-2">${safeTitle}</h2>
+
+                                    <div class="text-sm text-gray-600 mb-3">
+                                        ${
+                                            displayDate
+                                                ? `<span class="font-semibold">Show date:</span> ${displayDate}`
+                                                : ""
+                                        }
+                                        ${
+                                            published
+                                                ? `<span class="ml-0 md:ml-4 block md:inline"><span class="font-semibold">Published:</span> ${published}</span>`
+                                                : ""
+                                        }
+                                    </div>
+
+                                    <p class="text-gray-700 text-sm mb-4 whitespace-pre-line">${safeDescription}</p>
+
+                                    <div class="flex flex-wrap gap-2">
+                                        <a 
+                                            href="${itemUrl}" 
+                                            class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm" 
+                                            target="_blank"
+                                        >
+                                            View on YouTube
+                                        </a>
+
+                                        <button 
+                                            onclick="copyLinkFromButton(this)" 
+                                            data-url="${escapeHtml(itemUrl)}"
+                                            class="bg-gray-700 hover:bg-gray-800 text-white px-3 py-2 rounded text-sm"
+                                        >
+                                            Copy Link
+                                        </button>
+
+                                        <button 
+                                            onclick="copySocialPostFromButton(this)" 
+                                            data-post="${escapeHtml(socialPost)}"
+                                            class="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded text-sm"
+                                        >
+                                            Copy Social Post
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     `;
                 });
 
