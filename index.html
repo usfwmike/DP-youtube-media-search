@@ -6,74 +6,131 @@
     <title>Dan Patrick Show Media Search</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="p-6">
-    <h1 class="text-2xl font-bold mb-4">Dan Patrick Show Media Search</h1>
+<body class="p-6 bg-gray-50">
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-3xl font-bold mb-2">Dan Patrick Show Media Search</h1>
 
-    <div class="flex flex-wrap items-end gap-4 mb-4">
-        <label class="block">
-            <span class="font-semibold">Date:</span>
-            <input type="date" id="dateInput" class="border p-2 ml-2">
-        </label>
+        <p class="text-gray-700 mb-6">
+            Search by date, keyword, or both. You can also view the most recently added videos.
+        </p>
 
-        <label class="block">
-            <span class="font-semibold">Keyword:</span>
-            <input 
-                type="text" 
-                id="keywordInput" 
-                class="border p-2 ml-2" 
-                placeholder="LeBron, Cubs, Jordan..."
+        <div class="flex flex-wrap items-end gap-4 mb-4">
+            <label class="block">
+                <span class="font-semibold">Date:</span>
+                <input type="date" id="dateInput" class="border p-2 ml-2 rounded">
+            </label>
+
+            <label class="block">
+                <span class="font-semibold">Keyword:</span>
+                <input 
+                    type="text" 
+                    id="keywordInput" 
+                    class="border p-2 ml-2 rounded w-72" 
+                    placeholder="LeBron, Cubs, Jordan..."
+                >
+            </label>
+
+            <button 
+                id="searchButton" 
+                onclick="searchMedia()" 
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
             >
-        </label>
+                Search
+            </button>
 
-        <button 
-            id="searchButton" 
-            onclick="searchMedia()" 
-            class="bg-blue-500 text-white px-4 py-2"
-        >
-            Search
-        </button>
+            <button 
+                onclick="showRecentlyAdded()" 
+                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+            >
+                Recently Added
+            </button>
 
-        <button 
-            onclick="clearSearch()" 
-            class="bg-gray-500 text-white px-4 py-2"
-        >
-            Clear
-        </button>
+            <button 
+                onclick="clearSearch()" 
+                class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+            >
+                Clear
+            </button>
+        </div>
+
+        <p id="statusMessage" class="mb-4 text-gray-800 font-medium"></p>
+
+        <div class="overflow-x-auto bg-white shadow rounded">
+            <table class="border-collapse border border-gray-300 w-full">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border p-2 text-left w-40">Thumbnail</th>
+                        <th class="border p-2 text-left">Title / Description</th>
+                        <th class="border p-2 text-left w-48">Published</th>
+                        <th class="border p-2 text-left w-32">Date</th>
+                        <th class="border p-2 text-left w-24">URL</th>
+                    </tr>
+                </thead>
+                <tbody id="results"></tbody>
+            </table>
+        </div>
     </div>
-
-    <p id="statusMessage" class="mb-3 text-gray-700"></p>
-
-    <table class="border-collapse border border-gray-400 w-full mt-4">
-        <thead>
-            <tr class="bg-gray-200">
-                <th class="border p-2 text-left">Title</th>
-                <th class="border p-2 text-left">Published At</th>
-                <th class="border p-2 text-left">Date</th>
-                <th class="border p-2 text-left">URL</th>
-            </tr>
-        </thead>
-        <tbody id="results"></tbody>
-    </table>
 
     <script>
         const workerUrl = "https://crimson-shape-c0f8.usedsubmarine.workers.dev/";
 
+        function formatDateTime(value) {
+            if (!value) return "";
+
+            const date = new Date(value);
+
+            if (isNaN(date.getTime())) {
+                return value;
+            }
+
+            return date.toLocaleString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit"
+            });
+        }
+
+        function escapeHtml(value) {
+            if (!value) return "";
+
+            return value
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        function buildNoResultsMessage(dateInput, keywordInput, isRecent) {
+            if (isRecent) {
+                return "No recently added videos found.";
+            }
+
+            if (dateInput && keywordInput) {
+                return `No results found for keyword "${keywordInput}" on ${dateInput}.`;
+            }
+
+            if (dateInput) {
+                return `No results found for ${dateInput}.`;
+            }
+
+            if (keywordInput) {
+                return `No results found for keyword "${keywordInput}".`;
+            }
+
+            return "No results found.";
+        }
+
         async function searchMedia() {
-            const button = document.getElementById("searchButton");
             const dateInput = document.getElementById("dateInput").value;
             const keywordInput = document.getElementById("keywordInput").value.trim();
-            const statusMessage = document.getElementById("statusMessage");
-            const tableBody = document.getElementById("results");
 
             if (!dateInput && !keywordInput) {
                 alert("Please enter a date, a keyword, or both.");
                 return;
             }
-
-            button.disabled = true;
-            button.innerText = "Searching...";
-            statusMessage.innerText = "Searching...";
-            tableBody.innerHTML = "";
 
             const params = new URLSearchParams();
 
@@ -86,6 +143,29 @@
             }
 
             params.append("t", Date.now());
+
+            await runSearch(params, false);
+        }
+
+        async function showRecentlyAdded() {
+            const params = new URLSearchParams();
+            params.append("recent", "true");
+            params.append("t", Date.now());
+
+            await runSearch(params, true);
+        }
+
+        async function runSearch(params, isRecent) {
+            const button = document.getElementById("searchButton");
+            const statusMessage = document.getElementById("statusMessage");
+            const tableBody = document.getElementById("results");
+            const dateInput = document.getElementById("dateInput").value;
+            const keywordInput = document.getElementById("keywordInput").value.trim();
+
+            button.disabled = true;
+            button.innerText = "Searching...";
+            statusMessage.innerText = "Searching...";
+            tableBody.innerHTML = "";
 
             const url = `${workerUrl}?${params.toString()}`;
 
@@ -101,10 +181,12 @@
                 tableBody.innerHTML = "";
 
                 if (!data || data.length === 0 || data[0].title === "No results found") {
-                    statusMessage.innerText = "No results found.";
+                    const message = buildNoResultsMessage(dateInput, keywordInput, isRecent);
+                    statusMessage.innerText = message;
+
                     tableBody.innerHTML = `
                         <tr>
-                            <td class="border p-2" colspan="4">No results found</td>
+                            <td class="border p-3" colspan="5">${message}</td>
                         </tr>
                     `;
                     return;
@@ -113,13 +195,29 @@
                 statusMessage.innerText = `Found ${data.length} result(s).`;
 
                 data.forEach(item => {
+                    const safeTitle = escapeHtml(item.title || "");
+                    const safeDescription = escapeHtml(item.description || "");
+                    const published = formatDateTime(item.published_at);
+                    const thumbnail = item.thumbnail || "";
+                    const url = item.url || "#";
+
                     tableBody.innerHTML += `
-                        <tr>
-                            <td class="border p-2">${item.title || ""}</td>
-                            <td class="border p-2">${item.published_at || ""}</td>
+                        <tr class="align-top">
+                            <td class="border p-2">
+                                ${
+                                    thumbnail 
+                                        ? `<img src="${thumbnail}" alt="Thumbnail" class="w-36 rounded">`
+                                        : `<span class="text-gray-400">No thumbnail</span>`
+                                }
+                            </td>
+                            <td class="border p-2">
+                                <div class="font-semibold mb-1">${safeTitle}</div>
+                                <div class="text-sm text-gray-700">${safeDescription}</div>
+                            </td>
+                            <td class="border p-2">${published}</td>
                             <td class="border p-2">${item.date || ""}</td>
                             <td class="border p-2">
-                                <a href="${item.url}" class="text-blue-500" target="_blank">View</a>
+                                <a href="${url}" class="text-blue-600 hover:underline" target="_blank">View</a>
                             </td>
                         </tr>
                     `;
