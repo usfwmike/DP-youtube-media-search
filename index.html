@@ -15,7 +15,7 @@
         </p>
 
         <div class="bg-white shadow rounded p-4 mb-5">
-            <div class="flex flex-wrap items-end gap-4">
+            <div class="flex flex-wrap items-end gap-4 mb-4">
                 <label class="block">
                     <span class="font-semibold">Date:</span>
                     <input type="date" id="dateInput" class="border p-2 ml-2 rounded">
@@ -59,6 +59,36 @@
                 >
                     Clear
                 </button>
+            </div>
+
+            <div class="border-t pt-4">
+                <p class="font-semibold mb-2">Quick Searches:</p>
+
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="quickSearch('NBA')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">NBA</button>
+                    <button onclick="quickSearch('NFL')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">NFL</button>
+                    <button onclick="quickSearch('MLB')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">MLB</button>
+                    <button onclick="quickSearch('Cubs')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Cubs</button>
+                    <button onclick="quickSearch('Yankees')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Yankees</button>
+                    <button onclick="quickSearch('Colts')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Colts</button>
+                    <button onclick="quickSearch('Pacers')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Pacers</button>
+
+                    <button onclick="quickSearch('LeBron')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">LeBron</button>
+                    <button onclick="quickSearch('Jordan')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Jordan</button>
+                    <button onclick="quickSearch('Kobe')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Kobe</button>
+                    <button onclick="quickSearch('Barkley')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Barkley</button>
+                    <button onclick="quickSearch('Shaq')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Shaq</button>
+
+                    <button onclick="quickSearch('McLovin')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-3 py-1 rounded text-sm">McLovin</button>
+                    <button onclick="quickSearch('Fritzy')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-3 py-1 rounded text-sm">Fritzy</button>
+                    <button onclick="quickSearch('Seton')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-3 py-1 rounded text-sm">Seton</button>
+                    <button onclick="quickSearch('Paulie')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-3 py-1 rounded text-sm">Paulie</button>
+
+                    <button onclick="quickSearch('Full Interview')" class="bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 rounded text-sm">Full Interview</button>
+                    <button onclick="quickSearch('DP Show Open')" class="bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 rounded text-sm">DP Show Open</button>
+                    <button onclick="quickSearch('DP Cold Open')" class="bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 rounded text-sm">DP Cold Open</button>
+                    <button onclick="quickSearch('Play of the Day')" class="bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 rounded text-sm">Play of the Day</button>
+                </div>
             </div>
         </div>
 
@@ -185,6 +215,11 @@
         async function copySocialPostFromButton(button) {
             const post = button.getAttribute("data-post");
             await copyText(post, button);
+        }
+
+        async function quickSearch(keyword) {
+            document.getElementById("keywordInput").value = keyword;
+            await searchMedia();
         }
 
         async function searchMedia() {
