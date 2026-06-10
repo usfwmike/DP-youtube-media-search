@@ -3,23 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Media Search</title>
+    <title>Dan Patrick Show Media Search</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="p-6">
-    <h1 class="text-2xl font-bold">Search Media by Date - Updated March 1, 2025 @ 9:03 PM</h1>
-    
-    <label>Date:  
-        <input type="date" id="dateInput" class="border p-2">
-    </label>
-    <button id="searchButton" onclick="searchMedia()" class="bg-blue-500 text-white px-4 py-2 ml-2">Search</button>
+    <h1 class="text-2xl font-bold mb-4">Dan Patrick Show Media Search</h1>
+
+    <div class="flex flex-wrap items-end gap-4 mb-4">
+        <label class="block">
+            <span class="font-semibold">Date:</span>
+            <input type="date" id="dateInput" class="border p-2 ml-2">
+        </label>
+
+        <label class="block">
+            <span class="font-semibold">Keyword:</span>
+            <input 
+                type="text" 
+                id="keywordInput" 
+                class="border p-2 ml-2" 
+                placeholder="LeBron, Cubs, Jordan..."
+            >
+        </label>
+
+        <button 
+            id="searchButton" 
+            onclick="searchMedia()" 
+            class="bg-blue-500 text-white px-4 py-2"
+        >
+            Search
+        </button>
+
+        <button 
+            onclick="clearSearch()" 
+            class="bg-gray-500 text-white px-4 py-2"
+        >
+            Clear
+        </button>
+    </div>
+
+    <p id="statusMessage" class="mb-3 text-gray-700"></p>
 
     <table class="border-collapse border border-gray-400 w-full mt-4">
         <thead>
             <tr class="bg-gray-200">
-                <th class="border p-2">Title</th>
-                <th class="border p-2">Published At</th>
-                <th class="border p-2">URL</th>
+                <th class="border p-2 text-left">Title</th>
+                <th class="border p-2 text-left">Published At</th>
+                <th class="border p-2 text-left">Date</th>
+                <th class="border p-2 text-left">URL</th>
             </tr>
         </thead>
         <tbody id="results"></tbody>
@@ -31,44 +61,85 @@
         async function searchMedia() {
             const button = document.getElementById("searchButton");
             const dateInput = document.getElementById("dateInput").value;
-            
-            if (!dateInput) {
-                alert("Please select a date.");
+            const keywordInput = document.getElementById("keywordInput").value.trim();
+            const statusMessage = document.getElementById("statusMessage");
+            const tableBody = document.getElementById("results");
+
+            if (!dateInput && !keywordInput) {
+                alert("Please enter a date, a keyword, or both.");
                 return;
             }
 
-            // Disable button and update text while fetching
             button.disabled = true;
             button.innerText = "Searching...";
+            statusMessage.innerText = "Searching...";
+            tableBody.innerHTML = "";
 
-            // Cache busting with timestamp
-            const url = `${workerUrl}?date=${dateInput}&t=${Date.now()}`;
+            const params = new URLSearchParams();
+
+            if (dateInput) {
+                params.append("date", dateInput);
+            }
+
+            if (keywordInput) {
+                params.append("query", keywordInput);
+            }
+
+            params.append("t", Date.now());
+
+            const url = `${workerUrl}?${params.toString()}`;
 
             try {
                 const response = await fetch(url);
+
                 if (!response.ok) {
                     throw new Error("Failed to fetch data");
                 }
+
                 const data = await response.json();
 
-                let tableBody = document.getElementById("results");
                 tableBody.innerHTML = "";
+
+                if (!data || data.length === 0 || data[0].title === "No results found") {
+                    statusMessage.innerText = "No results found.";
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td class="border p-2" colspan="4">No results found</td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                statusMessage.innerText = `Found ${data.length} result(s).`;
+
                 data.forEach(item => {
-                    tableBody.innerHTML += `<tr>
-                        <td class="border p-2">${item.title}</td>
-                        <td class="border p-2">${item.published_at}</td>
-                        <td class="border p-2"><a href="${item.url}" class="text-blue-500" target="_blank">View</a></td>
-                    </tr>`;
+                    tableBody.innerHTML += `
+                        <tr>
+                            <td class="border p-2">${item.title || ""}</td>
+                            <td class="border p-2">${item.published_at || ""}</td>
+                            <td class="border p-2">${item.date || ""}</td>
+                            <td class="border p-2">
+                                <a href="${item.url}" class="text-blue-500" target="_blank">View</a>
+                            </td>
+                        </tr>
+                    `;
                 });
 
             } catch (error) {
                 console.error("Error:", error);
+                statusMessage.innerText = "Error fetching data. Please try again.";
                 alert("Error fetching data. Please try again.");
             } finally {
-                // Re-enable button and reset text after fetching
                 button.disabled = false;
                 button.innerText = "Search";
             }
+        }
+
+        function clearSearch() {
+            document.getElementById("dateInput").value = "";
+            document.getElementById("keywordInput").value = "";
+            document.getElementById("statusMessage").innerText = "";
+            document.getElementById("results").innerHTML = "";
         }
     </script>
 </body>
