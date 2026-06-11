@@ -877,8 +877,30 @@
                         <div class="md:w-48 bg-gray-100 flex items-center justify-center p-3">
                             ${
                                 imageUrl
-                                    ? `<img src="${escapeHtml(imageUrl)}" alt="Podcast image" class="w-full max-w-40 rounded">`
-                                    : `<span class="text-gray-400">Podcast</span>`
+                                    ? `
+                                        <div class="w-full max-w-40">
+                                            <img 
+                                                src="${escapeHtml(imageUrl)}" 
+                                                alt="Podcast image" 
+                                                class="w-full rounded"
+                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                            >
+
+                                            <div 
+                                                class="min-h-28 rounded border border-dashed border-gray-400 bg-gray-50 text-gray-600 flex-col items-center justify-center text-center p-3"
+                                                style="display: none;"
+                                            >
+                                                <div class="text-xs uppercase tracking-wide">Podcast</div>
+                                                <div class="text-lg font-bold">Episode</div>
+                                            </div>
+                                        </div>
+                                    `
+                                    : `
+                                        <div class="w-full max-w-40 min-h-28 rounded border border-dashed border-gray-400 bg-gray-50 text-gray-600 flex flex-col items-center justify-center text-center p-3">
+                                            <div class="text-xs uppercase tracking-wide">Podcast</div>
+                                            <div class="text-lg font-bold">Episode</div>
+                                        </div>
+                                    `
                             }
                         </div>
 
