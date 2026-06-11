@@ -473,6 +473,23 @@
                 .replaceAll("'", "&#039;");
         }
 
+        function isOmnyEpisodePage(url) {
+            if (!url) return false;
+
+            return String(url).startsWith("https://omny.fm/");
+        }
+
+        function getBestPodcastLink(item) {
+            const episodeUrl = item.episode_url || "";
+            const audioUrl = item.audio_url || "";
+
+            if (isOmnyEpisodePage(episodeUrl)) {
+                return episodeUrl;
+            }
+
+            return audioUrl || episodeUrl || "#";
+        }
+
         async function loadStats() {
             const statsMessage = document.getElementById("statsMessage");
 
@@ -687,7 +704,7 @@
         function buildPodcastSocialPost(item) {
             const title = decodeHtmlEntities(item.title || "DP Show podcast episode");
             const dateText = item.date ? formatDateOnly(item.date) : "";
-            const url = item.episode_url || item.audio_url || "";
+            const url = getBestPodcastLink(item);
 
             if (dateText) {
                 return `DP Show podcast episode:\n\n${dateText} — ${title}\n\nListen: ${url}`;
@@ -924,9 +941,12 @@
             const published = formatDateTime(item.published_at);
             const displayDate = item.date ? formatDateOnly(item.date) : "";
             const duration = formatPodcastDuration(item);
-            const episodeUrl = item.episode_url || "#";
+            const episodeUrl = item.episode_url || "";
             const audioUrl = item.audio_url || "";
             const imageUrl = item.image_url || "";
+            const hasOmnyPage = isOmnyEpisodePage(episodeUrl);
+            const bestPodcastLink = getBestPodcastLink(item);
+            const copyButtonText = hasOmnyPage ? "Copy Podcast Link" : "Copy Audio Link";
             const podcastPost = buildPodcastSocialPost(item);
 
             return `
@@ -986,13 +1006,19 @@
                             <p class="text-gray-700 text-sm mb-4 whitespace-pre-line">${safeDescription}</p>
 
                             <div class="flex flex-wrap gap-2">
-                                <a 
-                                    href="${escapeHtml(episodeUrl)}" 
-                                    class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded text-sm" 
-                                    target="_blank"
-                                >
-                                    Open Podcast Page
-                                </a>
+                                ${
+                                    hasOmnyPage
+                                        ? `
+                                            <a 
+                                                href="${escapeHtml(episodeUrl)}" 
+                                                class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded text-sm" 
+                                                target="_blank"
+                                            >
+                                                Open Podcast Page
+                                            </a>
+                                        `
+                                        : ""
+                                }
 
                                 ${
                                     audioUrl
@@ -1010,10 +1036,10 @@
 
                                 <button 
                                     onclick="copyLinkFromButton(this)" 
-                                    data-url="${escapeHtml(episodeUrl)}"
+                                    data-url="${escapeHtml(bestPodcastLink)}"
                                     class="bg-gray-700 hover:bg-gray-800 text-white px-3 py-2 rounded text-sm"
                                 >
-                                    Copy Podcast Link
+                                    ${copyButtonText}
                                 </button>
 
                                 <button 
