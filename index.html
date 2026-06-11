@@ -393,6 +393,18 @@
             return `${minutes}:${String(seconds).padStart(2, "0")}`;
         }
 
+        function formatPodcastDuration(item) {
+            if (item.duration_seconds) {
+                return formatDuration(item.duration_seconds);
+            }
+
+            if (item.duration_text && /^\d+$/.test(String(item.duration_text))) {
+                return formatDuration(item.duration_text);
+            }
+
+            return item.duration_text || "";
+        }
+
         function formatNumber(value) {
             const number = Number(value);
 
@@ -420,7 +432,7 @@
         function escapeHtml(value) {
             if (!value) return "";
 
-            return value
+            return String(value)
                 .replaceAll("&", "&amp;")
                 .replaceAll("<", "&lt;")
                 .replaceAll(">", "&gt;")
@@ -530,11 +542,11 @@
             }
 
             if (dateInput && keywordInput) {
-                return `No results found for keyword "${keywordInput}" on ${dateInput}.`;
+                return `No YouTube results found for keyword "${keywordInput}" on ${dateInput}.`;
             }
 
             if (dateInput) {
-                return `No results found for ${dateInput}.`;
+                return `No YouTube results found for ${dateInput}.`;
             }
 
             if (keywordInput) {
@@ -622,6 +634,18 @@
             return `DP Show archive find:\n\n${title}\n\nWatch: ${url}`;
         }
 
+        function buildPodcastSocialPost(item) {
+            const title = decodeHtmlEntities(item.title || "DP Show podcast episode");
+            const dateText = item.date ? formatDateOnly(item.date) : "";
+            const url = item.episode_url || item.audio_url || "";
+
+            if (dateText) {
+                return `DP Show podcast episode:\n\n${dateText} — ${title}\n\nListen: ${url}`;
+            }
+
+            return `DP Show podcast episode:\n\n${title}\n\nListen: ${url}`;
+        }
+
         async function copyLinkFromButton(button) {
             const url = button.getAttribute("data-url");
             await copyText(url, button);
@@ -703,6 +727,64 @@
             await runSearch(params, "recent", "");
         }
 
+        async function fetchPodcastEpisodesForDate(dateInput) {
+            if (!dateInput) {
+                return [];
+            }
+
+            const params = new URLSearchParams();
+            params.append("podcasts", "true");
+            params.append("date", dateInput);
+            params.append("t", Date.now());
+
+            const response = await fetch(`${workerUrl}?${params.toString()}`);
+
+            if (!response.ok) {
+                throw new Error("Failed to fetch podcast episodes");
+            }
+
+            const data = await response.json();
+
+            if (!data || data.length === 0 || data[0].title === "No podcast episodes found") {
+                return [];
+            }
+
+            return data;
+        }
+
+        async function appendPodcastSectionForDate(dateInput) {
+            if (!dateInput) {
+                return 0;
+            }
+
+            const resultsDiv = document.getElementById("results");
+
+            try {
+                const podcastItems = await fetchPodcastEpisodesForDate(dateInput);
+
+                if (!podcastItems.length) {
+                    return 0;
+                }
+
+                resultsDiv.insertAdjacentHTML("beforeend", renderPodcastSection(podcastItems, dateInput));
+
+                return podcastItems.length;
+            } catch (error) {
+                console.error("Podcast fetch error:", error);
+
+                resultsDiv.insertAdjacentHTML(
+                    "beforeend",
+                    `
+                        <div class="bg-white shadow rounded p-4 text-gray-700 border border-transparent">
+                            Could not load podcast episodes for this date.
+                        </div>
+                    `
+                );
+
+                return 0;
+            }
+        }
+
         function renderResultCard(item) {
             const safeTitle = escapeHtml(decodeHtmlEntities(item.title || ""));
             const safeDescription = escapeHtml(decodeHtmlEntities(item.description || ""));
@@ -719,7 +801,7 @@
                         <div class="md:w-64 bg-gray-100 flex items-center justify-center p-3">
                             ${
                                 thumbnail 
-                                    ? `<img src="${thumbnail}" alt="Thumbnail" class="w-full max-w-60 rounded">`
+                                    ? `<img src="${escapeHtml(thumbnail)}" alt="Thumbnail" class="w-full max-w-60 rounded">`
                                     : `<span class="text-gray-400">No thumbnail</span>`
                             }
                         </div>
@@ -749,7 +831,7 @@
 
                             <div class="flex flex-wrap gap-2">
                                 <a 
-                                    href="${itemUrl}" 
+                                    href="${escapeHtml(itemUrl)}" 
                                     class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm" 
                                     target="_blank"
                                 >
@@ -778,9 +860,124 @@
             `;
         }
 
+        function renderPodcastCard(item) {
+            const safeTitle = escapeHtml(decodeHtmlEntities(item.title || ""));
+            const safeDescription = escapeHtml(decodeHtmlEntities(item.description || ""));
+            const published = formatDateTime(item.published_at);
+            const displayDate = item.date ? formatDateOnly(item.date) : "";
+            const duration = formatPodcastDuration(item);
+            const episodeUrl = item.episode_url || "#";
+            const audioUrl = item.audio_url || "";
+            const imageUrl = item.image_url || "";
+            const podcastPost = buildPodcastSocialPost(item);
+
+            return `
+                <div class="bg-white shadow rounded overflow-hidden border border-transparent">
+                    <div class="flex flex-col md:flex-row">
+                        <div class="md:w-48 bg-gray-100 flex items-center justify-center p-3">
+                            ${
+                                imageUrl
+                                    ? `<img src="${escapeHtml(imageUrl)}" alt="Podcast image" class="w-full max-w-40 rounded">`
+                                    : `<span class="text-gray-400">Podcast</span>`
+                            }
+                        </div>
+
+                        <div class="flex-1 p-4">
+                            <h3 class="text-lg font-bold mb-2 text-gray-900">${safeTitle}</h3>
+
+                            <div class="text-sm text-gray-600 mb-3">
+                                ${
+                                    displayDate
+                                        ? `<span class="font-semibold">Episode date:</span> ${displayDate}`
+                                        : ""
+                                }
+                                ${
+                                    published
+                                        ? `<span class="ml-0 md:ml-4 block md:inline"><span class="font-semibold">Published:</span> ${published}</span>`
+                                        : ""
+                                }
+                                ${
+                                    duration
+                                        ? `<span class="ml-0 md:ml-4 block md:inline"><span class="font-semibold">Duration:</span> ${duration}</span>`
+                                        : ""
+                                }
+                            </div>
+
+                            <p class="text-gray-700 text-sm mb-4 whitespace-pre-line">${safeDescription}</p>
+
+                            <div class="flex flex-wrap gap-2">
+                                <a 
+                                    href="${escapeHtml(episodeUrl)}" 
+                                    class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded text-sm" 
+                                    target="_blank"
+                                >
+                                    Open Podcast Page
+                                </a>
+
+                                ${
+                                    audioUrl
+                                        ? `
+                                            <a 
+                                                href="${escapeHtml(audioUrl)}" 
+                                                class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm" 
+                                                target="_blank"
+                                            >
+                                                Open Audio
+                                            </a>
+                                        `
+                                        : ""
+                                }
+
+                                <button 
+                                    onclick="copyLinkFromButton(this)" 
+                                    data-url="${escapeHtml(episodeUrl)}"
+                                    class="bg-gray-700 hover:bg-gray-800 text-white px-3 py-2 rounded text-sm"
+                                >
+                                    Copy Podcast Link
+                                </button>
+
+                                <button 
+                                    onclick="copySocialPostFromButton(this)" 
+                                    data-post="${escapeHtml(podcastPost)}"
+                                    class="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded text-sm"
+                                >
+                                    Copy Podcast Post
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         function renderRegularResults(items) {
             const resultsDiv = document.getElementById("results");
-            resultsDiv.innerHTML = items.map(renderResultCard).join("");
+
+            resultsDiv.innerHTML = `
+                <div class="bg-slate-800 text-white rounded px-4 py-3 mb-3">
+                    <div class="font-bold text-lg">YouTube Results</div>
+                    <div class="text-sm text-slate-300">${items.length} video(s)</div>
+                </div>
+
+                ${items.map(renderResultCard).join("")}
+            `;
+        }
+
+        function renderPodcastSection(items, dateInput) {
+            const dateLabel = dateInput ? formatDateOnly(dateInput) : "Selected date";
+
+            return `
+                <div class="mt-8">
+                    <div class="bg-purple-800 text-white rounded px-4 py-3 mb-3">
+                        <div class="font-bold text-lg">Podcast Episodes</div>
+                        <div class="text-sm text-purple-200">${dateLabel} · ${items.length} episode(s)</div>
+                    </div>
+
+                    <div class="space-y-4">
+                        ${items.map(renderPodcastCard).join("")}
+                    </div>
+                </div>
+            `;
         }
 
         function renderGroupedResults(items) {
@@ -870,6 +1067,15 @@
                             ${message}
                         </div>
                     `;
+
+                    if (searchType === "normal" && dateInput) {
+                        const podcastCount = await appendPodcastSectionForDate(dateInput);
+
+                        if (podcastCount > 0) {
+                            statusMessage.innerText += ` Podcast episodes found: ${podcastCount}.`;
+                        }
+                    }
+
                     return;
                 }
 
@@ -877,28 +1083,37 @@
                 const filterText = describeActiveFilters();
 
                 if (filteredData.length === 0) {
-                    statusMessage.innerText = `Found ${data.length} result(s), but 0 matched the active filters.${filterText}`;
+                    statusMessage.innerText = `Found ${data.length} YouTube result(s), but 0 matched the active filters.${filterText}`;
 
                     resultsDiv.innerHTML = `
                         <div class="bg-white shadow rounded p-4 text-gray-700 border border-transparent">
-                            Results were found, but none matched your active filters.
+                            YouTube results were found, but none matched your active filters.
                         </div>
                     `;
+
+                    if (searchType === "normal" && dateInput) {
+                        const podcastCount = await appendPodcastSectionForDate(dateInput);
+
+                        if (podcastCount > 0) {
+                            statusMessage.innerText += ` Podcast episodes found: ${podcastCount}.`;
+                        }
+                    }
+
                     return;
                 }
 
                 if (searchType === "onThisDay") {
-                    statusMessage.innerText = `Found ${filteredData.length} result(s) from this day in DP Show history: ${monthDay}.`;
+                    statusMessage.innerText = `Found ${filteredData.length} YouTube result(s) from this day in DP Show history: ${monthDay}.`;
                 } else if (searchType === "monthDayBrowse") {
                     if (keywordInput) {
-                        statusMessage.innerText = `Found ${filteredData.length} result(s) for MM-DD ${monthDay} matching keyword "${keywordInput}".`;
+                        statusMessage.innerText = `Found ${filteredData.length} YouTube result(s) for MM-DD ${monthDay} matching keyword "${keywordInput}".`;
                     } else {
-                        statusMessage.innerText = `Found ${filteredData.length} result(s) for MM-DD ${monthDay} across all years.`;
+                        statusMessage.innerText = `Found ${filteredData.length} YouTube result(s) for MM-DD ${monthDay} across all years.`;
                     }
                 } else if (searchType === "recent") {
-                    statusMessage.innerText = `Found ${filteredData.length} recently added result(s).`;
+                    statusMessage.innerText = `Found ${filteredData.length} recently added YouTube result(s).`;
                 } else {
-                    statusMessage.innerText = `Found ${filteredData.length} result(s).`;
+                    statusMessage.innerText = `Found ${filteredData.length} YouTube result(s).`;
                 }
 
                 if (filteredData.length !== data.length) {
@@ -911,6 +1126,14 @@
                     renderGroupedResults(filteredData);
                 } else {
                     renderRegularResults(filteredData);
+                }
+
+                if (searchType === "normal" && dateInput) {
+                    const podcastCount = await appendPodcastSectionForDate(dateInput);
+
+                    if (podcastCount > 0) {
+                        statusMessage.innerText += ` Podcast episodes found: ${podcastCount}.`;
+                    }
                 }
 
             } catch (error) {
