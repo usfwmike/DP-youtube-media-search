@@ -412,6 +412,20 @@
             return number.toLocaleString();
         }
 
+        function decodeHtmlEntities(value) {
+            if (!value) return "";
+
+            let decoded = value;
+
+            for (let i = 0; i < 3; i++) {
+                const textarea = document.createElement("textarea");
+                textarea.innerHTML = decoded;
+                decoded = textarea.value;
+            }
+
+            return decoded;
+        }
+
         function escapeHtml(value) {
             if (!value) return "";
 
@@ -541,8 +555,8 @@
             const fullInterviewOnly = document.getElementById("fullInterviewOnly").checked;
             const excludeOpens = document.getElementById("excludeOpens").checked;
 
-            const title = (item.title || "").toLowerCase();
-            const description = (item.description || "").toLowerCase();
+            const title = decodeHtmlEntities(item.title || "").toLowerCase();
+            const description = decodeHtmlEntities(item.description || "").toLowerCase();
             const combinedText = `${title} ${description}`;
 
             if (fullInterviewOnly && !combinedText.includes("full interview")) {
@@ -604,7 +618,7 @@
         }
 
         function buildSocialPost(item) {
-            const title = item.title || "DP Show archive find";
+            const title = decodeHtmlEntities(item.title || "DP Show archive find");
             const dateText = item.date ? formatDateOnly(item.date) : "";
             const url = item.url || "";
 
@@ -697,8 +711,8 @@
         }
 
         function renderResultCard(item) {
-            const safeTitle = escapeHtml(item.title || "");
-            const safeDescription = escapeHtml(item.description || "");
+            const safeTitle = escapeHtml(decodeHtmlEntities(item.title || ""));
+            const safeDescription = escapeHtml(decodeHtmlEntities(item.description || ""));
             const published = formatDateTime(item.published_at);
             const displayDate = item.date ? formatDateOnly(item.date) : "";
             const duration = formatDuration(item.duration);
