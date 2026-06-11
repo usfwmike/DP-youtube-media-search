@@ -15,6 +15,75 @@
         </p>
 
         <div class="bg-white shadow rounded p-4 mb-5">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-xl font-bold">Archive Stats</h2>
+                    <p id="statsMessage" class="text-sm text-gray-600">Loading stats...</p>
+                </div>
+
+                <button 
+                    onclick="loadStats()" 
+                    class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded text-sm"
+                >
+                    Refresh Stats
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div class="bg-gray-50 border rounded p-3">
+                    <div class="text-sm text-gray-600">Total Videos</div>
+                    <div id="totalVideosStat" class="text-2xl font-bold">—</div>
+                </div>
+
+                <div class="bg-gray-50 border rounded p-3">
+                    <div class="text-sm text-gray-600">Year Range</div>
+                    <div id="yearRangeStat" class="text-2xl font-bold">—</div>
+                </div>
+
+                <div class="bg-gray-50 border rounded p-3">
+                    <div class="text-sm text-gray-600">Oldest Video</div>
+                    <div id="oldestDateStat" class="text-lg font-bold">—</div>
+                </div>
+
+                <div class="bg-gray-50 border rounded p-3">
+                    <div class="text-sm text-gray-600">Newest Video</div>
+                    <div id="newestDateStat" class="text-lg font-bold">—</div>
+                </div>
+
+                <div class="bg-gray-50 border rounded p-3">
+                    <div class="text-sm text-gray-600">Unique Show Dates</div>
+                    <div id="uniqueShowDatesStat" class="text-2xl font-bold">—</div>
+                </div>
+
+                <div class="bg-gray-50 border rounded p-3">
+                    <div class="text-sm text-gray-600">Unique MM-DD Dates</div>
+                    <div id="uniqueMonthDaysStat" class="text-2xl font-bold">—</div>
+                </div>
+
+                <div class="bg-gray-50 border rounded p-3">
+                    <div class="text-sm text-gray-600">Full Interviews</div>
+                    <div id="fullInterviewsStat" class="text-2xl font-bold">—</div>
+                </div>
+
+                <div class="bg-gray-50 border rounded p-3">
+                    <div class="text-sm text-gray-600">Avg. Duration</div>
+                    <div id="averageDurationStat" class="text-2xl font-bold">—</div>
+                </div>
+            </div>
+
+            <div class="mt-3 text-sm text-gray-600">
+                <span class="font-semibold">Rows with thumbnails:</span>
+                <span id="thumbnailCountStat">—</span>
+                <span class="mx-2">|</span>
+                <span class="font-semibold">Rows with duration:</span>
+                <span id="durationCountStat">—</span>
+                <span class="mx-2">|</span>
+                <span class="font-semibold">Last database update:</span>
+                <span id="lastAddedStat">—</span>
+            </div>
+        </div>
+
+        <div class="bg-white shadow rounded p-4 mb-5">
             <div class="flex flex-wrap items-end gap-4 mb-4">
                 <label class="block">
                     <span class="font-semibold">Date:</span>
@@ -201,6 +270,16 @@
             return `${minutes}:${String(seconds).padStart(2, "0")}`;
         }
 
+        function formatNumber(value) {
+            const number = Number(value);
+
+            if (!Number.isFinite(number)) {
+                return "—";
+            }
+
+            return number.toLocaleString();
+        }
+
         function escapeHtml(value) {
             if (!value) return "";
 
@@ -210,6 +289,45 @@
                 .replaceAll(">", "&gt;")
                 .replaceAll('"', "&quot;")
                 .replaceAll("'", "&#039;");
+        }
+
+        async function loadStats() {
+            const statsMessage = document.getElementById("statsMessage");
+
+            statsMessage.innerText = "Loading stats...";
+
+            try {
+                const response = await fetch(`${workerUrl}?stats=true&t=${Date.now()}`);
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch stats");
+                }
+
+                const stats = await response.json();
+
+                document.getElementById("totalVideosStat").innerText = formatNumber(stats.total_videos);
+
+                if (stats.oldest_year && stats.newest_year) {
+                    document.getElementById("yearRangeStat").innerText = `${stats.oldest_year}–${stats.newest_year}`;
+                } else {
+                    document.getElementById("yearRangeStat").innerText = "—";
+                }
+
+                document.getElementById("oldestDateStat").innerText = stats.oldest_date ? formatDateOnly(stats.oldest_date) : "—";
+                document.getElementById("newestDateStat").innerText = stats.newest_date ? formatDateOnly(stats.newest_date) : "—";
+                document.getElementById("uniqueShowDatesStat").innerText = formatNumber(stats.unique_show_dates);
+                document.getElementById("uniqueMonthDaysStat").innerText = formatNumber(stats.unique_month_days);
+                document.getElementById("fullInterviewsStat").innerText = formatNumber(stats.full_interviews);
+                document.getElementById("averageDurationStat").innerText = stats.average_duration_seconds ? formatDuration(stats.average_duration_seconds) : "—";
+                document.getElementById("thumbnailCountStat").innerText = formatNumber(stats.videos_with_thumbnails);
+                document.getElementById("durationCountStat").innerText = formatNumber(stats.videos_with_duration);
+                document.getElementById("lastAddedStat").innerText = stats.last_added_at ? formatDateTime(stats.last_added_at) : "—";
+
+                statsMessage.innerText = "Stats loaded successfully.";
+            } catch (error) {
+                console.error("Stats error:", error);
+                statsMessage.innerText = "Could not load stats.";
+            }
         }
 
         function getTodayMonthDay() {
@@ -675,6 +793,8 @@
             document.getElementById("statusMessage").innerText = "";
             document.getElementById("results").innerHTML = "";
         }
+
+        document.addEventListener("DOMContentLoaded", loadStats);
     </script>
 </body>
 </html>
