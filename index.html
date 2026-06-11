@@ -183,6 +183,24 @@
             });
         }
 
+        function formatDuration(value) {
+            const totalSeconds = Number(value);
+
+            if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) {
+                return "";
+            }
+
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            if (hours > 0) {
+                return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+            }
+
+            return `${minutes}:${String(seconds).padStart(2, "0")}`;
+        }
+
         function escapeHtml(value) {
             if (!value) return "";
 
@@ -433,6 +451,7 @@
             const safeDescription = escapeHtml(item.description || "");
             const published = formatDateTime(item.published_at);
             const displayDate = item.date ? formatDateOnly(item.date) : "";
+            const duration = formatDuration(item.duration);
             const thumbnail = item.thumbnail || "";
             const itemUrl = item.url || "#";
             const socialPost = buildSocialPost(item);
@@ -460,6 +479,11 @@
                                 ${
                                     published
                                         ? `<span class="ml-0 md:ml-4 block md:inline"><span class="font-semibold">Published:</span> ${published}</span>`
+                                        : ""
+                                }
+                                ${
+                                    duration
+                                        ? `<span class="ml-0 md:ml-4 block md:inline"><span class="font-semibold">Duration:</span> ${duration}</span>`
                                         : ""
                                 }
                             </div>
