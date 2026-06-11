@@ -11,7 +11,7 @@
         <h1 class="text-3xl font-bold mb-2">Dan Patrick Show Media Search</h1>
 
         <p class="text-gray-700 mb-6">
-            Search by date, keyword, or both. You can also view recently added videos or search what happened on this day across DP Show history.
+            Search by date, keyword, or both. You can also browse any MM-DD across all years, view recently added videos, or search what happened on this day across DP Show history.
         </p>
 
         <div class="bg-white shadow rounded p-4 mb-5">
@@ -59,6 +59,33 @@
                 >
                     Clear
                 </button>
+            </div>
+
+            <div class="border-t pt-4 mb-4">
+                <p class="font-semibold mb-2">Browse by Month/Day Across All Years:</p>
+
+                <div class="flex flex-wrap items-end gap-4">
+                    <label class="block">
+                        <span class="font-semibold">MM-DD:</span>
+                        <input 
+                            type="text" 
+                            id="monthDayInput" 
+                            class="border p-2 ml-2 rounded w-32" 
+                            placeholder="06-11"
+                        >
+                    </label>
+
+                    <button 
+                        onclick="browseMonthDay()" 
+                        class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded"
+                    >
+                        Browse MM-DD
+                    </button>
+
+                    <p class="text-sm text-gray-600">
+                        Accepts 06-11, 6-11, or 6/11. If a keyword is entered, it will narrow the MM-DD results.
+                    </p>
+                </div>
             </div>
 
             <div class="border-t pt-4 mb-4">
@@ -175,6 +202,42 @@
             return `${month}-${day}`;
         }
 
+        function normalizeMonthDay(value) {
+            if (!value) {
+                return null;
+            }
+
+            const cleanedValue = value.trim().replaceAll("/", "-");
+            const parts = cleanedValue.split("-");
+
+            if (parts.length !== 2) {
+                return null;
+            }
+
+            const month = parseInt(parts[0], 10);
+            const day = parseInt(parts[1], 10);
+
+            if (Number.isNaN(month) || Number.isNaN(day)) {
+                return null;
+            }
+
+            if (month < 1 || month > 12 || day < 1 || day > 31) {
+                return null;
+            }
+
+            // Use leap year 2024 so 02-29 is considered valid.
+            const testDate = new Date(2024, month - 1, day);
+
+            if (testDate.getMonth() !== month - 1 || testDate.getDate() !== day) {
+                return null;
+            }
+
+            const normalizedMonth = String(month).padStart(2, "0");
+            const normalizedDay = String(day).padStart(2, "0");
+
+            return `${normalizedMonth}-${normalizedDay}`;
+        }
+
         function buildNoResultsMessage(dateInput, keywordInput, searchType, monthDay) {
             if (searchType === "recent") {
                 return "No recently added videos found.";
@@ -182,6 +245,14 @@
 
             if (searchType === "onThisDay") {
                 return `No videos found for this day in DP Show history: ${monthDay}.`;
+            }
+
+            if (searchType === "monthDayBrowse") {
+                if (keywordInput) {
+                    return `No results found for keyword "${keywordInput}" on MM-DD ${monthDay}.`;
+                }
+
+                return `No videos found for MM-DD ${monthDay}.`;
             }
 
             if (dateInput && keywordInput) {
@@ -316,6 +387,30 @@
             await runSearch(params, "normal", "");
         }
 
+        async function browseMonthDay() {
+            const rawMonthDay = document.getElementById("monthDayInput").value;
+            const monthDay = normalizeMonthDay(rawMonthDay);
+            const keywordInput = document.getElementById("keywordInput").value.trim();
+
+            if (!monthDay) {
+                alert("Please enter a valid month/day, like 06-11, 6-11, or 6/11.");
+                return;
+            }
+
+            document.getElementById("monthDayInput").value = monthDay;
+
+            const params = new URLSearchParams();
+            params.append("month_day", monthDay);
+
+            if (keywordInput) {
+                params.append("query", keywordInput);
+            }
+
+            params.append("t", Date.now());
+
+            await runSearch(params, "monthDayBrowse", monthDay);
+        }
+
         async function showOnThisDay() {
             const monthDay = getTodayMonthDay();
 
@@ -387,6 +482,12 @@
 
                 if (searchType === "onThisDay") {
                     statusMessage.innerText = `Found ${filteredData.length} result(s) from this day in DP Show history: ${monthDay}.`;
+                } else if (searchType === "monthDayBrowse") {
+                    if (keywordInput) {
+                        statusMessage.innerText = `Found ${filteredData.length} result(s) for MM-DD ${monthDay} matching keyword "${keywordInput}".`;
+                    } else {
+                        statusMessage.innerText = `Found ${filteredData.length} result(s) for MM-DD ${monthDay} across all years.`;
+                    }
                 } else if (searchType === "recent") {
                     statusMessage.innerText = `Found ${filteredData.length} recently added result(s).`;
                 } else {
@@ -481,6 +582,7 @@
         function clearSearch() {
             document.getElementById("dateInput").value = "";
             document.getElementById("keywordInput").value = "";
+            document.getElementById("monthDayInput").value = "";
             document.getElementById("fullInterviewOnly").checked = false;
             document.getElementById("excludeOpens").checked = false;
             document.getElementById("statusMessage").innerText = "";
