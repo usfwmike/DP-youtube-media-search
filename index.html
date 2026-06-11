@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dan Patrick Show Media Search</title>
+    <title>DP Show Archive</title>
 
     <script>
         if (localStorage.getItem("theme") === "dark") {
@@ -52,6 +52,7 @@
             color: #94a3b8 !important;
         }
 
+        html.dark .text-gray-500,
         html.dark .text-gray-400 {
             color: #94a3b8 !important;
         }
@@ -112,101 +113,29 @@
 
 <body class="p-6 bg-gray-50 text-gray-900">
     <div class="max-w-7xl mx-auto">
-<div class="flex flex-wrap items-center justify-between gap-4 mb-2">
-    <div class="flex items-center gap-4">
-        <img 
-            src="https://danpatrick.com/wp-content/uploads/2021/03/logo.png" 
-            alt="The Dan Patrick Show logo" 
-            class="h-14 w-auto object-contain bg-white rounded p-1"
-        >
-
-        <div>
-            <h1 class="text-3xl font-bold">Dan Patrick Show Media Search</h1>
-            <p class="text-sm text-gray-600">
-                Personal fan archive / research tool. Not affiliated with The Dan Patrick Show.
-            </p>
-        </div>
-    </div>
-
-    <button 
-        id="themeToggleButton"
-        onclick="toggleTheme()" 
-        class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded text-sm"
-    >
-        Dark Mode
-    </button>
-</div>
-        <p class="text-gray-700 mb-6">
-            Search by date, keyword, or both. You can also browse any MM-DD across all years, view recently added videos, or search what happened on this day across DP Show history.
-        </p>
-
-        <div class="bg-white shadow rounded p-4 mb-5 border border-transparent">
-            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-                <div>
-                    <h2 class="text-xl font-bold">Archive Stats</h2>
-                    <p id="statsMessage" class="text-sm text-gray-600">Loading stats...</p>
-                </div>
-
-                <button 
-                    onclick="loadStats()" 
-                    class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded text-sm"
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div class="flex items-center gap-4">
+                <img 
+                    src="https://danpatrick.com/wp-content/uploads/2021/03/logo.png" 
+                    alt="The Dan Patrick Show logo" 
+                    class="h-10 w-auto object-contain bg-white rounded p-1"
                 >
-                    Refresh Stats
-                </button>
-            </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div class="bg-gray-50 border rounded p-3">
-                    <div class="text-sm text-gray-600">Total Videos</div>
-                    <div id="totalVideosStat" class="text-2xl font-bold">—</div>
-                </div>
-
-                <div class="bg-gray-50 border rounded p-3">
-                    <div class="text-sm text-gray-600">Year Range</div>
-                    <div id="yearRangeStat" class="text-2xl font-bold">—</div>
-                </div>
-
-                <div class="bg-gray-50 border rounded p-3">
-                    <div class="text-sm text-gray-600">Oldest Video</div>
-                    <div id="oldestDateStat" class="text-lg font-bold">—</div>
-                </div>
-
-                <div class="bg-gray-50 border rounded p-3">
-                    <div class="text-sm text-gray-600">Newest Video</div>
-                    <div id="newestDateStat" class="text-lg font-bold">—</div>
-                </div>
-
-                <div class="bg-gray-50 border rounded p-3">
-                    <div class="text-sm text-gray-600">Unique Show Dates</div>
-                    <div id="uniqueShowDatesStat" class="text-2xl font-bold">—</div>
-                </div>
-
-                <div class="bg-gray-50 border rounded p-3">
-                    <div class="text-sm text-gray-600">Unique MM-DD Dates</div>
-                    <div id="uniqueMonthDaysStat" class="text-2xl font-bold">—</div>
-                </div>
-
-                <div class="bg-gray-50 border rounded p-3">
-                    <div class="text-sm text-gray-600">Full Interviews</div>
-                    <div id="fullInterviewsStat" class="text-2xl font-bold">—</div>
-                </div>
-
-                <div class="bg-gray-50 border rounded p-3">
-                    <div class="text-sm text-gray-600">Avg. Duration</div>
-                    <div id="averageDurationStat" class="text-2xl font-bold">—</div>
+                <div>
+                    <h1 class="text-3xl font-bold leading-tight">DP Show Archive</h1>
+                    <p class="text-sm text-gray-600">
+                        Personal fan archive / research tool. Not affiliated with The Dan Patrick Show.
+                    </p>
                 </div>
             </div>
 
-            <div class="mt-3 text-sm text-gray-600">
-                <span class="font-semibold">Rows with thumbnails:</span>
-                <span id="thumbnailCountStat">—</span>
-                <span class="mx-2">|</span>
-                <span class="font-semibold">Rows with duration:</span>
-                <span id="durationCountStat">—</span>
-                <span class="mx-2">|</span>
-                <span class="font-semibold">Last database update:</span>
-                <span id="lastAddedStat">—</span>
-            </div>
+            <button 
+                id="themeToggleButton"
+                onclick="toggleTheme()" 
+                class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded text-sm"
+            >
+                Dark Mode
+            </button>
         </div>
 
         <div class="bg-white shadow rounded p-4 mb-5 border border-transparent">
@@ -257,7 +186,7 @@
             </div>
 
             <div class="border-t pt-4 mb-4">
-                <p class="font-semibold mb-2">Browse by Month/Day Across All Years:</p>
+                <p class="font-semibold mb-2">Browse by Month/Day Across All Years</p>
 
                 <div class="flex flex-wrap items-end gap-4">
                     <label class="block">
@@ -278,13 +207,13 @@
                     </button>
 
                     <p class="text-sm text-gray-600">
-                        Accepts 06-11, 6-11, or 6/11. If a keyword is entered, it will narrow the MM-DD results.
+                        Accepts 06-11, 6-11, or 6/11.
                     </p>
                 </div>
             </div>
 
             <div class="border-t pt-4 mb-4">
-                <p class="font-semibold mb-2">Filters:</p>
+                <p class="font-semibold mb-2">Filters</p>
 
                 <div class="flex flex-wrap gap-4">
                     <label class="flex items-center gap-2">
@@ -297,14 +226,10 @@
                         <span>Exclude Opens / Cold Opens</span>
                     </label>
                 </div>
-
-                <p class="text-sm text-gray-600 mt-2">
-                    These filters apply to the results shown on this page.
-                </p>
             </div>
 
             <div class="border-t pt-4">
-                <p class="font-semibold mb-2">Quick Searches:</p>
+                <p class="font-semibold mb-2">Quick Searches</p>
 
                 <div class="flex flex-wrap gap-2">
                     <button onclick="quickSearch('NBA')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">NBA</button>
@@ -333,6 +258,60 @@
                     <button onclick="quickSearch('DP Cold Open')" class="bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 rounded text-sm">DP Cold Open</button>
                     <button onclick="quickSearch('Play of the Day')" class="bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 rounded text-sm">Play of the Day</button>
                 </div>
+            </div>
+        </div>
+
+        <div class="bg-white shadow rounded p-4 mb-5 border border-transparent">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-lg font-bold">Archive Snapshot</h2>
+                    <p id="statsMessage" class="text-sm text-gray-600">Loading stats...</p>
+                </div>
+
+                <button 
+                    onclick="loadStats()" 
+                    class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded text-sm"
+                >
+                    Refresh Stats
+                </button>
+            </div>
+
+            <div class="mt-4 grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div class="bg-gray-50 border rounded p-3">
+                    <div class="text-xs text-gray-600 uppercase tracking-wide">Videos</div>
+                    <div id="totalVideosStat" class="text-xl font-bold">—</div>
+                </div>
+
+                <div class="bg-gray-50 border rounded p-3">
+                    <div class="text-xs text-gray-600 uppercase tracking-wide">Years</div>
+                    <div id="yearRangeStat" class="text-xl font-bold">—</div>
+                </div>
+
+                <div class="bg-gray-50 border rounded p-3">
+                    <div class="text-xs text-gray-600 uppercase tracking-wide">Show Dates</div>
+                    <div id="uniqueShowDatesStat" class="text-xl font-bold">—</div>
+                </div>
+
+                <div class="bg-gray-50 border rounded p-3">
+                    <div class="text-xs text-gray-600 uppercase tracking-wide">Full Interviews</div>
+                    <div id="fullInterviewsStat" class="text-xl font-bold">—</div>
+                </div>
+
+                <div class="bg-gray-50 border rounded p-3">
+                    <div class="text-xs text-gray-600 uppercase tracking-wide">Avg. Duration</div>
+                    <div id="averageDurationStat" class="text-xl font-bold">—</div>
+                </div>
+            </div>
+
+            <div class="mt-3 text-sm text-gray-600">
+                <span class="font-semibold">Coverage:</span>
+                <span id="coverageStat">—</span>
+                <span class="mx-2">|</span>
+                <span class="font-semibold">Unique MM-DD:</span>
+                <span id="uniqueMonthDaysStat">—</span>
+                <span class="mx-2">|</span>
+                <span class="font-semibold">Last update:</span>
+                <span id="lastAddedStat">—</span>
             </div>
         </div>
 
@@ -471,15 +450,17 @@
                     document.getElementById("yearRangeStat").innerText = "—";
                 }
 
-                document.getElementById("oldestDateStat").innerText = stats.oldest_date ? formatDateOnly(stats.oldest_date) : "—";
-                document.getElementById("newestDateStat").innerText = stats.newest_date ? formatDateOnly(stats.newest_date) : "—";
                 document.getElementById("uniqueShowDatesStat").innerText = formatNumber(stats.unique_show_dates);
                 document.getElementById("uniqueMonthDaysStat").innerText = formatNumber(stats.unique_month_days);
                 document.getElementById("fullInterviewsStat").innerText = formatNumber(stats.full_interviews);
                 document.getElementById("averageDurationStat").innerText = stats.average_duration_seconds ? formatDuration(stats.average_duration_seconds) : "—";
-                document.getElementById("thumbnailCountStat").innerText = formatNumber(stats.videos_with_thumbnails);
-                document.getElementById("durationCountStat").innerText = formatNumber(stats.videos_with_duration);
                 document.getElementById("lastAddedStat").innerText = stats.last_added_at ? formatDateTime(stats.last_added_at) : "—";
+
+                if (stats.oldest_date && stats.newest_date) {
+                    document.getElementById("coverageStat").innerText = `${formatDateOnly(stats.oldest_date)} through ${formatDateOnly(stats.newest_date)}`;
+                } else {
+                    document.getElementById("coverageStat").innerText = "—";
+                }
 
                 statsMessage.innerText = "Stats loaded successfully.";
             } catch (error) {
