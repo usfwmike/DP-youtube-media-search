@@ -4,21 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dan Patrick Show Media Search</title>
+
+    <script>
+        tailwind = {
+            config: {
+                darkMode: "class"
+            }
+        };
+
+        if (localStorage.getItem("theme") === "dark") {
+            document.documentElement.classList.add("dark");
+        }
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="p-6 bg-gray-50">
-    <div class="max-w-7xl mx-auto">
-        <h1 class="text-3xl font-bold mb-2">Dan Patrick Show Media Search</h1>
 
-        <p class="text-gray-700 mb-6">
+<body class="p-6 bg-gray-50 text-gray-900 dark:bg-slate-950 dark:text-slate-100">
+    <div class="max-w-7xl mx-auto">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-2">
+            <h1 class="text-3xl font-bold">Dan Patrick Show Media Search</h1>
+
+            <button 
+                id="themeToggleButton"
+                onclick="toggleTheme()" 
+                class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded text-sm"
+            >
+                🌙 Dark Mode
+            </button>
+        </div>
+
+        <p class="text-gray-700 dark:text-slate-300 mb-6">
             Search by date, keyword, or both. You can also browse any MM-DD across all years, view recently added videos, or search what happened on this day across DP Show history.
         </p>
 
-        <div class="bg-white shadow rounded p-4 mb-5">
+        <div class="bg-white dark:bg-slate-900 shadow rounded p-4 mb-5 border border-transparent dark:border-slate-700">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div>
                     <h2 class="text-xl font-bold">Archive Stats</h2>
-                    <p id="statsMessage" class="text-sm text-gray-600">Loading stats...</p>
+                    <p id="statsMessage" class="text-sm text-gray-600 dark:text-slate-400">Loading stats...</p>
                 </div>
 
                 <button 
@@ -30,48 +54,48 @@
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div class="bg-gray-50 border rounded p-3">
-                    <div class="text-sm text-gray-600">Total Videos</div>
+                <div class="bg-gray-50 dark:bg-slate-800 border dark:border-slate-700 rounded p-3">
+                    <div class="text-sm text-gray-600 dark:text-slate-400">Total Videos</div>
                     <div id="totalVideosStat" class="text-2xl font-bold">—</div>
                 </div>
 
-                <div class="bg-gray-50 border rounded p-3">
-                    <div class="text-sm text-gray-600">Year Range</div>
+                <div class="bg-gray-50 dark:bg-slate-800 border dark:border-slate-700 rounded p-3">
+                    <div class="text-sm text-gray-600 dark:text-slate-400">Year Range</div>
                     <div id="yearRangeStat" class="text-2xl font-bold">—</div>
                 </div>
 
-                <div class="bg-gray-50 border rounded p-3">
-                    <div class="text-sm text-gray-600">Oldest Video</div>
+                <div class="bg-gray-50 dark:bg-slate-800 border dark:border-slate-700 rounded p-3">
+                    <div class="text-sm text-gray-600 dark:text-slate-400">Oldest Video</div>
                     <div id="oldestDateStat" class="text-lg font-bold">—</div>
                 </div>
 
-                <div class="bg-gray-50 border rounded p-3">
-                    <div class="text-sm text-gray-600">Newest Video</div>
+                <div class="bg-gray-50 dark:bg-slate-800 border dark:border-slate-700 rounded p-3">
+                    <div class="text-sm text-gray-600 dark:text-slate-400">Newest Video</div>
                     <div id="newestDateStat" class="text-lg font-bold">—</div>
                 </div>
 
-                <div class="bg-gray-50 border rounded p-3">
-                    <div class="text-sm text-gray-600">Unique Show Dates</div>
+                <div class="bg-gray-50 dark:bg-slate-800 border dark:border-slate-700 rounded p-3">
+                    <div class="text-sm text-gray-600 dark:text-slate-400">Unique Show Dates</div>
                     <div id="uniqueShowDatesStat" class="text-2xl font-bold">—</div>
                 </div>
 
-                <div class="bg-gray-50 border rounded p-3">
-                    <div class="text-sm text-gray-600">Unique MM-DD Dates</div>
+                <div class="bg-gray-50 dark:bg-slate-800 border dark:border-slate-700 rounded p-3">
+                    <div class="text-sm text-gray-600 dark:text-slate-400">Unique MM-DD Dates</div>
                     <div id="uniqueMonthDaysStat" class="text-2xl font-bold">—</div>
                 </div>
 
-                <div class="bg-gray-50 border rounded p-3">
-                    <div class="text-sm text-gray-600">Full Interviews</div>
+                <div class="bg-gray-50 dark:bg-slate-800 border dark:border-slate-700 rounded p-3">
+                    <div class="text-sm text-gray-600 dark:text-slate-400">Full Interviews</div>
                     <div id="fullInterviewsStat" class="text-2xl font-bold">—</div>
                 </div>
 
-                <div class="bg-gray-50 border rounded p-3">
-                    <div class="text-sm text-gray-600">Avg. Duration</div>
+                <div class="bg-gray-50 dark:bg-slate-800 border dark:border-slate-700 rounded p-3">
+                    <div class="text-sm text-gray-600 dark:text-slate-400">Avg. Duration</div>
                     <div id="averageDurationStat" class="text-2xl font-bold">—</div>
                 </div>
             </div>
 
-            <div class="mt-3 text-sm text-gray-600">
+            <div class="mt-3 text-sm text-gray-600 dark:text-slate-400">
                 <span class="font-semibold">Rows with thumbnails:</span>
                 <span id="thumbnailCountStat">—</span>
                 <span class="mx-2">|</span>
@@ -83,11 +107,11 @@
             </div>
         </div>
 
-        <div class="bg-white shadow rounded p-4 mb-5">
+        <div class="bg-white dark:bg-slate-900 shadow rounded p-4 mb-5 border border-transparent dark:border-slate-700">
             <div class="flex flex-wrap items-end gap-4 mb-4">
                 <label class="block">
                     <span class="font-semibold">Date:</span>
-                    <input type="date" id="dateInput" class="border p-2 ml-2 rounded">
+                    <input type="date" id="dateInput" class="border dark:border-slate-600 p-2 ml-2 rounded dark:bg-slate-800 dark:text-slate-100">
                 </label>
 
                 <label class="block">
@@ -95,7 +119,7 @@
                     <input 
                         type="text" 
                         id="keywordInput" 
-                        class="border p-2 ml-2 rounded w-72" 
+                        class="border dark:border-slate-600 p-2 ml-2 rounded w-72 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-400" 
                         placeholder="LeBron, Cubs, Jordan..."
                     >
                 </label>
@@ -130,7 +154,7 @@
                 </button>
             </div>
 
-            <div class="border-t pt-4 mb-4">
+            <div class="border-t dark:border-slate-700 pt-4 mb-4">
                 <p class="font-semibold mb-2">Browse by Month/Day Across All Years:</p>
 
                 <div class="flex flex-wrap items-end gap-4">
@@ -139,7 +163,7 @@
                         <input 
                             type="text" 
                             id="monthDayInput" 
-                            class="border p-2 ml-2 rounded w-32" 
+                            class="border dark:border-slate-600 p-2 ml-2 rounded w-32 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-400" 
                             placeholder="06-11"
                         >
                     </label>
@@ -151,13 +175,13 @@
                         Browse MM-DD
                     </button>
 
-                    <p class="text-sm text-gray-600">
+                    <p class="text-sm text-gray-600 dark:text-slate-400">
                         Accepts 06-11, 6-11, or 6/11. If a keyword is entered, it will narrow the MM-DD results.
                     </p>
                 </div>
             </div>
 
-            <div class="border-t pt-4 mb-4">
+            <div class="border-t dark:border-slate-700 pt-4 mb-4">
                 <p class="font-semibold mb-2">Filters:</p>
 
                 <div class="flex flex-wrap gap-4">
@@ -172,51 +196,69 @@
                     </label>
                 </div>
 
-                <p class="text-sm text-gray-600 mt-2">
+                <p class="text-sm text-gray-600 dark:text-slate-400 mt-2">
                     These filters apply to the results shown on this page.
                 </p>
             </div>
 
-            <div class="border-t pt-4">
+            <div class="border-t dark:border-slate-700 pt-4">
                 <p class="font-semibold mb-2">Quick Searches:</p>
 
                 <div class="flex flex-wrap gap-2">
-                    <button onclick="quickSearch('NBA')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">NBA</button>
-                    <button onclick="quickSearch('NFL')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">NFL</button>
-                    <button onclick="quickSearch('MLB')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">MLB</button>
-                    <button onclick="quickSearch('Cubs')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Cubs</button>
-                    <button onclick="quickSearch('Yankees')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Yankees</button>
-                    <button onclick="quickSearch('Colts')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Colts</button>
-                    <button onclick="quickSearch('Pacers')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Pacers</button>
+                    <button onclick="quickSearch('NBA')" class="bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-100 px-3 py-1 rounded text-sm">NBA</button>
+                    <button onclick="quickSearch('NFL')" class="bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-100 px-3 py-1 rounded text-sm">NFL</button>
+                    <button onclick="quickSearch('MLB')" class="bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-100 px-3 py-1 rounded text-sm">MLB</button>
+                    <button onclick="quickSearch('Cubs')" class="bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-100 px-3 py-1 rounded text-sm">Cubs</button>
+                    <button onclick="quickSearch('Yankees')" class="bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-100 px-3 py-1 rounded text-sm">Yankees</button>
+                    <button onclick="quickSearch('Colts')" class="bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-100 px-3 py-1 rounded text-sm">Colts</button>
+                    <button onclick="quickSearch('Pacers')" class="bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-100 px-3 py-1 rounded text-sm">Pacers</button>
 
-                    <button onclick="quickSearch('LeBron')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">LeBron</button>
-                    <button onclick="quickSearch('Jordan')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Jordan</button>
-                    <button onclick="quickSearch('Kobe')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Kobe</button>
-                    <button onclick="quickSearch('Barkley')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Barkley</button>
-                    <button onclick="quickSearch('Shaq')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Shaq</button>
+                    <button onclick="quickSearch('LeBron')" class="bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-100 px-3 py-1 rounded text-sm">LeBron</button>
+                    <button onclick="quickSearch('Jordan')" class="bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-100 px-3 py-1 rounded text-sm">Jordan</button>
+                    <button onclick="quickSearch('Kobe')" class="bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-100 px-3 py-1 rounded text-sm">Kobe</button>
+                    <button onclick="quickSearch('Barkley')" class="bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-100 px-3 py-1 rounded text-sm">Barkley</button>
+                    <button onclick="quickSearch('Shaq')" class="bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-100 px-3 py-1 rounded text-sm">Shaq</button>
 
-                    <button onclick="quickSearch('McLovin')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-3 py-1 rounded text-sm">McLovin</button>
-                    <button onclick="quickSearch('Fritzy')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-3 py-1 rounded text-sm">Fritzy</button>
-                    <button onclick="quickSearch('Seton')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-3 py-1 rounded text-sm">Seton</button>
-                    <button onclick="quickSearch('Paulie')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-3 py-1 rounded text-sm">Paulie</button>
-                    <button onclick="quickSearch('Marvin')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-3 py-1 rounded text-sm">Marvin</button>
-                    <button onclick="quickSearch('Dylan')" class="bg-orange-100 hover:bg-orange-200 text-orange-900 px-3 py-1 rounded text-sm">Dylan</button>
+                    <button onclick="quickSearch('McLovin')" class="bg-orange-100 hover:bg-orange-200 dark:bg-orange-900 dark:hover:bg-orange-800 text-orange-900 dark:text-orange-100 px-3 py-1 rounded text-sm">McLovin</button>
+                    <button onclick="quickSearch('Fritzy')" class="bg-orange-100 hover:bg-orange-200 dark:bg-orange-900 dark:hover:bg-orange-800 text-orange-900 dark:text-orange-100 px-3 py-1 rounded text-sm">Fritzy</button>
+                    <button onclick="quickSearch('Seton')" class="bg-orange-100 hover:bg-orange-200 dark:bg-orange-900 dark:hover:bg-orange-800 text-orange-900 dark:text-orange-100 px-3 py-1 rounded text-sm">Seton</button>
+                    <button onclick="quickSearch('Paulie')" class="bg-orange-100 hover:bg-orange-200 dark:bg-orange-900 dark:hover:bg-orange-800 text-orange-900 dark:text-orange-100 px-3 py-1 rounded text-sm">Paulie</button>
+                    <button onclick="quickSearch('Marvin')" class="bg-orange-100 hover:bg-orange-200 dark:bg-orange-900 dark:hover:bg-orange-800 text-orange-900 dark:text-orange-100 px-3 py-1 rounded text-sm">Marvin</button>
+                    <button onclick="quickSearch('Dylan')" class="bg-orange-100 hover:bg-orange-200 dark:bg-orange-900 dark:hover:bg-orange-800 text-orange-900 dark:text-orange-100 px-3 py-1 rounded text-sm">Dylan</button>
 
-                    <button onclick="quickSearch('Full Interview')" class="bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 rounded text-sm">Full Interview</button>
-                    <button onclick="quickSearch('DP Show Open')" class="bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 rounded text-sm">DP Show Open</button>
-                    <button onclick="quickSearch('DP Cold Open')" class="bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 rounded text-sm">DP Cold Open</button>
-                    <button onclick="quickSearch('Play of the Day')" class="bg-blue-100 hover:bg-blue-200 text-blue-900 px-3 py-1 rounded text-sm">Play of the Day</button>
+                    <button onclick="quickSearch('Full Interview')" class="bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-900 dark:text-blue-100 px-3 py-1 rounded text-sm">Full Interview</button>
+                    <button onclick="quickSearch('DP Show Open')" class="bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-900 dark:text-blue-100 px-3 py-1 rounded text-sm">DP Show Open</button>
+                    <button onclick="quickSearch('DP Cold Open')" class="bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-900 dark:text-blue-100 px-3 py-1 rounded text-sm">DP Cold Open</button>
+                    <button onclick="quickSearch('Play of the Day')" class="bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-900 dark:text-blue-100 px-3 py-1 rounded text-sm">Play of the Day</button>
                 </div>
             </div>
         </div>
 
-        <p id="statusMessage" class="mb-4 text-gray-800 font-medium"></p>
+        <p id="statusMessage" class="mb-4 text-gray-800 dark:text-slate-200 font-medium"></p>
 
         <div id="results" class="space-y-4"></div>
     </div>
 
     <script>
         const workerUrl = "https://crimson-shape-c0f8.usedsubmarine.workers.dev/";
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle("dark");
+            localStorage.setItem("theme", isDark ? "dark" : "light");
+            updateThemeButton();
+        }
+
+        function updateThemeButton() {
+            const button = document.getElementById("themeToggleButton");
+
+            if (!button) return;
+
+            if (document.documentElement.classList.contains("dark")) {
+                button.innerText = "☀️ Light Mode";
+            } else {
+                button.innerText = "🌙 Dark Mode";
+            }
+        }
 
         function formatDateTime(value) {
             if (!value) return "";
@@ -575,20 +617,20 @@
             const socialPost = buildSocialPost(item);
 
             return `
-                <div class="bg-white shadow rounded overflow-hidden">
+                <div class="bg-white dark:bg-slate-900 shadow rounded overflow-hidden border border-transparent dark:border-slate-700">
                     <div class="flex flex-col md:flex-row">
-                        <div class="md:w-64 bg-gray-100 flex items-center justify-center p-3">
+                        <div class="md:w-64 bg-gray-100 dark:bg-slate-800 flex items-center justify-center p-3">
                             ${
                                 thumbnail 
                                     ? `<img src="${thumbnail}" alt="Thumbnail" class="w-full max-w-60 rounded">`
-                                    : `<span class="text-gray-400">No thumbnail</span>`
+                                    : `<span class="text-gray-400 dark:text-slate-500">No thumbnail</span>`
                             }
                         </div>
 
                         <div class="flex-1 p-4">
-                            <h2 class="text-xl font-bold mb-2">${safeTitle}</h2>
+                            <h2 class="text-xl font-bold mb-2 text-gray-900 dark:text-slate-100">${safeTitle}</h2>
 
-                            <div class="text-sm text-gray-600 mb-3">
+                            <div class="text-sm text-gray-600 dark:text-slate-400 mb-3">
                                 ${
                                     displayDate
                                         ? `<span class="font-semibold">Show date:</span> ${displayDate}`
@@ -606,7 +648,7 @@
                                 }
                             </div>
 
-                            <p class="text-gray-700 text-sm mb-4 whitespace-pre-line">${safeDescription}</p>
+                            <p class="text-gray-700 dark:text-slate-300 text-sm mb-4 whitespace-pre-line">${safeDescription}</p>
 
                             <div class="flex flex-wrap gap-2">
                                 <a 
@@ -682,7 +724,7 @@
 
                 html += `
                     <div class="mt-6 first:mt-0">
-                        <div class="bg-slate-800 text-white rounded px-4 py-3 mb-3">
+                        <div class="bg-slate-800 dark:bg-slate-700 text-white rounded px-4 py-3 mb-3">
                             <div class="font-bold text-lg">${groupTitle}</div>
                             <div class="text-sm text-slate-300">${groupItems.length} video(s)</div>
                         </div>
@@ -727,7 +769,7 @@
                     statusMessage.innerText = message;
 
                     resultsDiv.innerHTML = `
-                        <div class="bg-white shadow rounded p-4 text-gray-700">
+                        <div class="bg-white dark:bg-slate-900 shadow rounded p-4 text-gray-700 dark:text-slate-300 border border-transparent dark:border-slate-700">
                             ${message}
                         </div>
                     `;
@@ -741,7 +783,7 @@
                     statusMessage.innerText = `Found ${data.length} result(s), but 0 matched the active filters.${filterText}`;
 
                     resultsDiv.innerHTML = `
-                        <div class="bg-white shadow rounded p-4 text-gray-700">
+                        <div class="bg-white dark:bg-slate-900 shadow rounded p-4 text-gray-700 dark:text-slate-300 border border-transparent dark:border-slate-700">
                             Results were found, but none matched your active filters.
                         </div>
                     `;
@@ -794,7 +836,10 @@
             document.getElementById("results").innerHTML = "";
         }
 
-        document.addEventListener("DOMContentLoaded", loadStats);
+        document.addEventListener("DOMContentLoaded", () => {
+            updateThemeButton();
+            loadStats();
+        });
     </script>
 </body>
 </html>
