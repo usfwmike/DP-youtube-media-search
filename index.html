@@ -213,7 +213,30 @@
             </div>
 
             <div class="border-t pt-4 mb-4">
-                <p class="font-semibold mb-2">Filters</p>
+                <p class="font-semibold mb-2">Source</p>
+
+                <div class="flex flex-wrap gap-4">
+                    <label class="flex items-center gap-2">
+                        <input type="radio" id="sourceBoth" name="sourceMode" value="both" class="h-4 w-4" checked>
+                        <span>YouTube + Podcasts</span>
+                    </label>
+
+                    <label class="flex items-center gap-2">
+                        <input type="radio" id="sourceYoutube" name="sourceMode" value="youtube" class="h-4 w-4">
+                        <span>YouTube only</span>
+                    </label>
+
+                    <label class="flex items-center gap-2">
+                        <input type="radio" id="sourcePodcasts" name="sourceMode" value="podcasts" class="h-4 w-4">
+                        <span>Podcasts only</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="border-t pt-4 mb-4">
+                <p class="font-semibold mb-2">
+                    Filters <span class="text-sm font-normal text-gray-600">(YouTube videos only)</span>
+                </p>
 
                 <div class="flex flex-wrap gap-4">
                     <label class="flex items-center gap-2">
@@ -327,6 +350,11 @@
 
     <script>
         const workerUrl = "https://crimson-shape-c0f8.usedsubmarine.workers.dev/";
+
+        function getSourceMode() {
+            const selected = document.querySelector('input[name="sourceMode"]:checked');
+            return selected ? selected.value : "both";
+        }
 
         function toggleTheme() {
             const isDark = document.documentElement.classList.toggle("dark");
@@ -556,10 +584,26 @@
             }
 
             if (keywordInput) {
-                return `No results found for keyword "${keywordInput}".`;
+                return `No YouTube results found for keyword "${keywordInput}".`;
             }
 
             return "No results found.";
+        }
+
+        function buildNoPodcastResultsMessage(dateInput, keywordInput) {
+            if (dateInput && keywordInput) {
+                return `No podcast episodes found for keyword "${keywordInput}" on ${dateInput}.`;
+            }
+
+            if (dateInput) {
+                return `No podcast episodes found for ${dateInput}.`;
+            }
+
+            if (keywordInput) {
+                return `No podcast episodes found for keyword "${keywordInput}".`;
+            }
+
+            return "No podcast episodes found.";
         }
 
         function resultMatchesFilters(item) {
@@ -733,14 +777,22 @@
             await runSearch(params, "recent", "");
         }
 
-        async function fetchPodcastEpisodesForDate(dateInput) {
-            if (!dateInput) {
+        async function fetchPodcastEpisodes({ dateInput, keywordInput }) {
+            if (!dateInput && !keywordInput) {
                 return [];
             }
 
             const params = new URLSearchParams();
             params.append("podcasts", "true");
-            params.append("date", dateInput);
+
+            if (dateInput) {
+                params.append("date", dateInput);
+            }
+
+            if (keywordInput) {
+                params.append("query", keywordInput);
+            }
+
             params.append("t", Date.now());
 
             const response = await fetch(`${workerUrl}?${params.toString()}`);
@@ -758,21 +810,21 @@
             return data;
         }
 
-        async function appendPodcastSectionForDate(dateInput) {
-            if (!dateInput) {
+        async function appendPodcastSection({ dateInput, keywordInput }) {
+            if (!dateInput && !keywordInput) {
                 return 0;
             }
 
             const resultsDiv = document.getElementById("results");
 
             try {
-                const podcastItems = await fetchPodcastEpisodesForDate(dateInput);
+                const podcastItems = await fetchPodcastEpisodes({ dateInput, keywordInput });
 
                 if (!podcastItems.length) {
                     return 0;
                 }
 
-                resultsDiv.insertAdjacentHTML("beforeend", renderPodcastSection(podcastItems, dateInput));
+                resultsDiv.insertAdjacentHTML("beforeend", renderPodcastSection(podcastItems, dateInput, keywordInput));
 
                 return podcastItems.length;
             } catch (error) {
@@ -782,7 +834,7 @@
                     "beforeend",
                     `
                         <div class="bg-white shadow rounded p-4 text-gray-700 border border-transparent">
-                            Could not load podcast episodes for this date.
+                            Could not load podcast episodes for this search.
                         </div>
                     `
                 );
@@ -991,14 +1043,24 @@
             `;
         }
 
-        function renderPodcastSection(items, dateInput) {
-            const dateLabel = dateInput ? formatDateOnly(dateInput) : "Selected date";
+        function renderPodcastSection(items, dateInput, keywordInput) {
+            let subtitleParts = [];
+
+            if (dateInput) {
+                subtitleParts.push(formatDateOnly(dateInput));
+            }
+
+            if (keywordInput) {
+                subtitleParts.push(`Keyword: ${keywordInput}`);
+            }
+
+            subtitleParts.push(`${items.length} episode(s)`);
 
             return `
                 <div class="mt-8">
                     <div class="bg-purple-800 text-white rounded px-4 py-3 mb-3">
                         <div class="font-bold text-lg">Podcast Episodes</div>
-                        <div class="text-sm text-purple-200">${dateLabel} · ${items.length} episode(s)</div>
+                        <div class="text-sm text-purple-200">${subtitleParts.join(" · ")}</div>
                     </div>
 
                     <div class="space-y-4">
@@ -1067,6 +1129,7 @@
             const resultsDiv = document.getElementById("results");
             const dateInput = document.getElementById("dateInput").value;
             const keywordInput = document.getElementById("keywordInput").value.trim();
+            const sourceMode = getSourceMode();
 
             button.disabled = true;
             button.innerText = "Searching...";
@@ -1076,6 +1139,25 @@
             const url = `${workerUrl}?${params.toString()}`;
 
             try {
+                if (searchType === "normal" && sourceMode === "podcasts") {
+                    const podcastCount = await appendPodcastSection({ dateInput, keywordInput });
+
+                    if (podcastCount > 0) {
+                        statusMessage.innerText = `Found ${podcastCount} podcast episode(s).`;
+                    } else {
+                        const message = buildNoPodcastResultsMessage(dateInput, keywordInput);
+                        statusMessage.innerText = message;
+
+                        resultsDiv.innerHTML = `
+                            <div class="bg-white shadow rounded p-4 text-gray-700 border border-transparent">
+                                ${message}
+                            </div>
+                        `;
+                    }
+
+                    return;
+                }
+
                 const response = await fetch(url);
 
                 if (!response.ok) {
@@ -1096,8 +1178,8 @@
                         </div>
                     `;
 
-                    if (searchType === "normal" && dateInput) {
-                        const podcastCount = await appendPodcastSectionForDate(dateInput);
+                    if (searchType === "normal" && sourceMode === "both" && (dateInput || keywordInput)) {
+                        const podcastCount = await appendPodcastSection({ dateInput, keywordInput });
 
                         if (podcastCount > 0) {
                             statusMessage.innerText += ` Podcast episodes found: ${podcastCount}.`;
@@ -1119,8 +1201,8 @@
                         </div>
                     `;
 
-                    if (searchType === "normal" && dateInput) {
-                        const podcastCount = await appendPodcastSectionForDate(dateInput);
+                    if (searchType === "normal" && sourceMode === "both" && (dateInput || keywordInput)) {
+                        const podcastCount = await appendPodcastSection({ dateInput, keywordInput });
 
                         if (podcastCount > 0) {
                             statusMessage.innerText += ` Podcast episodes found: ${podcastCount}.`;
@@ -1156,8 +1238,8 @@
                     renderRegularResults(filteredData);
                 }
 
-                if (searchType === "normal" && dateInput) {
-                    const podcastCount = await appendPodcastSectionForDate(dateInput);
+                if (searchType === "normal" && sourceMode === "both" && (dateInput || keywordInput)) {
+                    const podcastCount = await appendPodcastSection({ dateInput, keywordInput });
 
                     if (podcastCount > 0) {
                         statusMessage.innerText += ` Podcast episodes found: ${podcastCount}.`;
@@ -1180,6 +1262,7 @@
             document.getElementById("monthDayInput").value = "";
             document.getElementById("fullInterviewOnly").checked = false;
             document.getElementById("excludeOpens").checked = false;
+            document.getElementById("sourceBoth").checked = true;
             document.getElementById("statusMessage").innerText = "";
             document.getElementById("results").innerHTML = "";
         }
