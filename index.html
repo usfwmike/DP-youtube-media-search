@@ -948,6 +948,7 @@
             const bestPodcastLink = getBestPodcastLink(item);
             const copyButtonText = hasOmnyPage ? "Copy Podcast Link" : "Copy Audio Link";
             const podcastPost = buildPodcastSocialPost(item);
+            const safeAppearanceNames = escapeHtml(item.appearance_names || "");
 
             return `
                 <div class="bg-white shadow rounded overflow-hidden border border-transparent">
@@ -1002,6 +1003,16 @@
                                         : ""
                                 }
                             </div>
+
+                            ${
+                                safeAppearanceNames
+                                    ? `
+                                        <div class="text-sm text-gray-700 mb-3">
+                                            <span class="font-semibold">People:</span> ${safeAppearanceNames}
+                                        </div>
+                                    `
+                                    : ""
+                            }
 
                             <p class="text-gray-700 text-sm mb-4 whitespace-pre-line">${safeDescription}</p>
 
