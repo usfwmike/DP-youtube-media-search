@@ -439,6 +439,23 @@
             return `${year}-${month}-${day}`;
         }
 
+        function formatDateWithWeekday(value) {
+            if (!value) return "";
+
+            const date = new Date(value + "T00:00:00");
+
+            if (isNaN(date.getTime())) {
+                return value;
+            }
+
+            return date.toLocaleDateString(undefined, {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric"
+            });
+        }
+
         function showDateNavigator(dateInput, searchType) {
             const navigator = document.getElementById("dateNavigator");
             const label = document.getElementById("dateNavigatorLabel");
@@ -447,7 +464,7 @@
 
             if (searchType === "normal" && dateInput) {
                 navigator.setAttribute("data-active-date", dateInput);
-                label.innerText = formatDateOnly(dateInput);
+                label.innerText = formatDateWithWeekday(dateInput);
                 navigator.classList.remove("hidden");
             } else {
                 hideDateNavigator();
