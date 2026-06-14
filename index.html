@@ -140,35 +140,10 @@
 
         <div class="bg-white shadow rounded p-4 mb-5 border border-transparent">
             <div class="flex flex-wrap items-end gap-4 mb-4">
-                <div class="block">
-                    <label class="block">
-                        <span class="font-semibold">Date:</span>
-                        <input type="date" id="dateInput" class="border p-2 ml-2 rounded">
-                    </label>
-
-                    <div class="flex gap-2 mt-2 ml-12">
-                        <button 
-                            onclick="moveDateAndSearch(-1)" 
-                            class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-2 py-1 rounded text-xs"
-                        >
-                            ← Prev
-                        </button>
-
-                        <button 
-                            onclick="setTodayAndSearch()" 
-                            class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-2 py-1 rounded text-xs"
-                        >
-                            Today
-                        </button>
-
-                        <button 
-                            onclick="moveDateAndSearch(1)" 
-                            class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-2 py-1 rounded text-xs"
-                        >
-                            Next →
-                        </button>
-                    </div>
-                </div>
+                <label class="block">
+                    <span class="font-semibold">Date:</span>
+                    <input type="date" id="dateInput" class="border p-2 ml-2 rounded">
+                </label>
 
                 <label class="block">
                     <span class="font-semibold">Keyword:</span>
@@ -370,6 +345,29 @@
 
         <p id="statusMessage" class="mb-4 text-gray-800 font-medium"></p>
 
+        <div id="dateNavigator" class="hidden bg-white shadow rounded p-3 mb-4 border border-transparent">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <button
+                    onclick="moveDateAndSearch(-1)"
+                    class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm"
+                >
+                    ← Prev
+                </button>
+
+                <div class="text-center flex-1 min-w-48">
+                    <div class="text-xs uppercase tracking-wide text-gray-500">Browsing Date</div>
+                    <div id="dateNavigatorLabel" class="font-bold text-lg text-gray-900">—</div>
+                </div>
+
+                <button
+                    onclick="moveDateAndSearch(1)"
+                    class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm"
+                >
+                    Next →
+                </button>
+            </div>
+        </div>
+
         <div id="results" class="space-y-4"></div>
     </div>
 
@@ -441,30 +439,62 @@
             return `${year}-${month}-${day}`;
         }
 
-        function getSelectedDateOrToday() {
-            const dateInput = document.getElementById("dateInput").value;
+        function showDateNavigator(dateInput, searchType) {
+            const navigator = document.getElementById("dateNavigator");
+            const label = document.getElementById("dateNavigatorLabel");
 
-            if (dateInput) {
-                return new Date(dateInput + "T00:00:00");
+            if (!navigator || !label) return;
+
+            if (searchType === "normal" && dateInput) {
+                navigator.setAttribute("data-active-date", dateInput);
+                label.innerText = formatDateOnly(dateInput);
+                navigator.classList.remove("hidden");
+            } else {
+                hideDateNavigator();
+            }
+        }
+
+        function hideDateNavigator() {
+            const navigator = document.getElementById("dateNavigator");
+            const label = document.getElementById("dateNavigatorLabel");
+
+            if (!navigator || !label) return;
+
+            navigator.removeAttribute("data-active-date");
+            label.innerText = "—";
+            navigator.classList.add("hidden");
+        }
+
+        function getNavigatorBaseDate() {
+            const navigator = document.getElementById("dateNavigator");
+            const navDate = navigator ? navigator.getAttribute("data-active-date") : "";
+            const inputDate = document.getElementById("dateInput").value;
+            const dateValue = navDate || inputDate;
+
+            if (!dateValue) {
+                return null;
             }
 
-            return new Date();
+            const date = new Date(dateValue + "T00:00:00");
+
+            if (isNaN(date.getTime())) {
+                return null;
+            }
+
+            return date;
         }
 
         async function moveDateAndSearch(dayChange) {
-            const currentDate = getSelectedDateOrToday();
+            const currentDate = getNavigatorBaseDate();
+
+            if (!currentDate) {
+                alert("Please search for a specific date first.");
+                return;
+            }
 
             currentDate.setDate(currentDate.getDate() + dayChange);
 
             document.getElementById("dateInput").value = formatDateForInput(currentDate);
-
-            await searchMedia();
-        }
-
-        async function setTodayAndSearch() {
-            const today = new Date();
-
-            document.getElementById("dateInput").value = formatDateForInput(today);
 
             await searchMedia();
         }
@@ -1229,6 +1259,8 @@
             const keywordInput = document.getElementById("keywordInput").value.trim();
             const sourceMode = getSourceMode();
 
+            showDateNavigator(dateInput, searchType);
+
             button.disabled = true;
             button.innerText = "Searching...";
             statusMessage.innerText = "Searching...";
@@ -1363,6 +1395,7 @@
             document.getElementById("sourceBoth").checked = true;
             document.getElementById("statusMessage").innerText = "";
             document.getElementById("results").innerHTML = "";
+            hideDateNavigator();
         }
 
         document.addEventListener("DOMContentLoaded", () => {
