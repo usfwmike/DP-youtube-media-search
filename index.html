@@ -108,6 +108,19 @@
         html.dark #statsMessage {
             color: #cbd5e1 !important;
         }
+
+        html.dark .bg-blue-50 {
+            background: #1e3a8a !important;
+        }
+
+        html.dark .border-blue-600 {
+            border-color: #60a5fa !important;
+        }
+
+        html.dark .text-blue-700,
+        html.dark .text-blue-800 {
+            color: #dbeafe !important;
+        }
     </style>
 </head>
 
@@ -368,6 +381,32 @@
             </div>
         </div>
 
+        <div id="weekBrowser" class="hidden bg-white shadow rounded p-4 mb-4 border border-transparent">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <button
+                    onclick="moveWeekAndSearch(-1)"
+                    class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm"
+                >
+                    ← Previous Week
+                </button>
+
+                <div class="text-center flex-1 min-w-64">
+                    <div class="text-xs uppercase tracking-wide text-gray-500">Week Browser</div>
+                    <div id="weekBrowserLabel" class="font-bold text-lg text-gray-900">—</div>
+                    <div id="weekBrowserContext" class="text-xs text-gray-600 mt-1">—</div>
+                </div>
+
+                <button
+                    onclick="moveWeekAndSearch(1)"
+                    class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm"
+                >
+                    Next Week →
+                </button>
+            </div>
+
+            <div id="weekBrowserDays" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2"></div>
+        </div>
+
         <div id="results" class="space-y-4"></div>
     </div>
 
@@ -510,6 +549,279 @@
             }
 
             currentDate.setDate(currentDate.getDate() + dayChange);
+
+            document.getElementById("dateInput").value = formatDateForInput(currentDate);
+
+            await searchMedia();
+        }
+
+        let weekBrowserRequestId = 0;
+
+        function getWeekStartSunday(date) {
+            const weekStart = new Date(date);
+            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+            return weekStart;
+        }
+
+        function addDays(date, days) {
+            const newDate = new Date(date);
+            newDate.setDate(newDate.getDate() + days);
+            return newDate;
+        }
+
+        function formatShortMonthDay(date) {
+            return date.toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric"
+            });
+        }
+
+        function getWeekBrowserContextText(keywordInput, sourceMode) {
+            const parts = [];
+
+            if (sourceMode === "both") {
+                parts.push("Showing YouTube and podcast counts");
+            } else if (sourceMode === "youtube") {
+                parts.push("Showing YouTube counts");
+            } else if (sourceMode === "podcasts") {
+                parts.push("Showing podcast counts");
+            }
+
+            if (keywordInput) {
+                parts.push(`Keyword: ${keywordInput}`);
+            }
+
+            if (document.getElementById("fullInterviewOnly").checked) {
+                parts.push("Full Interviews only");
+            }
+
+            if (document.getElementById("excludeOpens").checked) {
+                parts.push("Excluding Opens / Cold Opens");
+            }
+
+            return parts.join(" · ");
+        }
+
+        function isEmptyResultPayload(data, emptyTitle) {
+            return !data || data.length === 0 || data[0].title === emptyTitle;
+        }
+
+        async function fetchYouTubeCountForDate(dateValue, keywordInput) {
+            const params = new URLSearchParams();
+            params.append("date", dateValue);
+
+            if (keywordInput) {
+                params.append("query", keywordInput);
+            }
+
+            params.append("t", Date.now());
+
+            const response = await fetch(`${workerUrl}?${params.toString()}`);
+
+            if (!response.ok) {
+                throw new Error("Failed to fetch YouTube count");
+            }
+
+            const data = await response.json();
+
+            if (isEmptyResultPayload(data, "No results found")) {
+                return 0;
+            }
+
+            return data.filter(resultMatchesFilters).length;
+        }
+
+        async function fetchPodcastCountForDate(dateValue, keywordInput) {
+            const params = new URLSearchParams();
+            params.append("podcasts", "true");
+            params.append("date", dateValue);
+
+            if (keywordInput) {
+                params.append("query", keywordInput);
+            }
+
+            params.append("t", Date.now());
+
+            const response = await fetch(`${workerUrl}?${params.toString()}`);
+
+            if (!response.ok) {
+                throw new Error("Failed to fetch podcast count");
+            }
+
+            const data = await response.json();
+
+            if (isEmptyResultPayload(data, "No podcast episodes found")) {
+                return 0;
+            }
+
+            return data.length;
+        }
+
+        async function fetchDayCounts(dateValue, keywordInput, sourceMode) {
+            const counts = {
+                youtube: null,
+                podcasts: null,
+                error: false
+            };
+
+            const tasks = [];
+
+            if (sourceMode !== "podcasts") {
+                tasks.push(
+                    fetchYouTubeCountForDate(dateValue, keywordInput)
+                        .then(count => {
+                            counts.youtube = count;
+                        })
+                );
+            }
+
+            if (sourceMode !== "youtube") {
+                tasks.push(
+                    fetchPodcastCountForDate(dateValue, keywordInput)
+                        .then(count => {
+                            counts.podcasts = count;
+                        })
+                );
+            }
+
+            try {
+                await Promise.all(tasks);
+            } catch (error) {
+                console.error("Week browser count error:", error);
+                counts.error = true;
+            }
+
+            return counts;
+        }
+
+        function formatCountLabel(counts, sourceMode) {
+            if (counts.error) {
+                return "Could not check";
+            }
+
+            const youtubeCount = counts.youtube || 0;
+            const podcastCount = counts.podcasts || 0;
+
+            if (sourceMode === "youtube") {
+                return youtubeCount > 0 ? `Y ${youtubeCount}` : "No data";
+            }
+
+            if (sourceMode === "podcasts") {
+                return podcastCount > 0 ? `P ${podcastCount}` : "No data";
+            }
+
+            const parts = [];
+
+            if (youtubeCount > 0) {
+                parts.push(`Y ${youtubeCount}`);
+            }
+
+            if (podcastCount > 0) {
+                parts.push(`P ${podcastCount}`);
+            }
+
+            return parts.length ? parts.join(" / ") : "No data";
+        }
+
+        function renderWeekDayButton(date, selectedDateValue, counts, sourceMode) {
+            const dateValue = formatDateForInput(date);
+            const isSelected = dateValue === selectedDateValue;
+            const dayName = date.toLocaleDateString(undefined, { weekday: "short" });
+            const countLabel = formatCountLabel(counts, sourceMode);
+
+            const selectedClasses = isSelected
+                ? "border-blue-600 bg-blue-50 text-blue-800"
+                : "border bg-gray-50 hover:bg-gray-100 text-gray-800";
+
+            const selectedLabel = isSelected
+                ? `<div class="mt-2 text-xs font-bold text-blue-700">Selected</div>`
+                : "";
+
+            return `
+                <button
+                    onclick="searchSpecificDate('${dateValue}')"
+                    class="rounded p-3 text-left ${selectedClasses}"
+                    title="Search ${formatDateWithWeekday(dateValue)}"
+                >
+                    <div class="font-bold">${dayName}</div>
+                    <div class="text-sm">${formatShortMonthDay(date)}</div>
+                    <div class="mt-2 text-xs">${countLabel}</div>
+                    ${selectedLabel}
+                </button>
+            `;
+        }
+
+        function hideWeekBrowser() {
+            const weekBrowser = document.getElementById("weekBrowser");
+            const weekBrowserDays = document.getElementById("weekBrowserDays");
+
+            if (!weekBrowser || !weekBrowserDays) return;
+
+            weekBrowser.classList.add("hidden");
+            weekBrowserDays.innerHTML = "";
+        }
+
+        async function loadWeekBrowser(dateInput, searchType, keywordInput, sourceMode) {
+            const weekBrowser = document.getElementById("weekBrowser");
+            const weekBrowserLabel = document.getElementById("weekBrowserLabel");
+            const weekBrowserContext = document.getElementById("weekBrowserContext");
+            const weekBrowserDays = document.getElementById("weekBrowserDays");
+
+            if (!weekBrowser || !weekBrowserLabel || !weekBrowserContext || !weekBrowserDays) return;
+
+            if (searchType !== "normal" || !dateInput) {
+                hideWeekBrowser();
+                return;
+            }
+
+            const selectedDate = new Date(dateInput + "T00:00:00");
+
+            if (isNaN(selectedDate.getTime())) {
+                hideWeekBrowser();
+                return;
+            }
+
+            const requestId = ++weekBrowserRequestId;
+            const weekStart = getWeekStartSunday(selectedDate);
+            const weekEnd = addDays(weekStart, 6);
+            const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+
+            weekBrowser.classList.remove("hidden");
+            weekBrowserLabel.innerText = `Week of ${formatDateWithWeekday(formatDateForInput(weekStart))}`;
+            weekBrowserContext.innerText = getWeekBrowserContextText(keywordInput, sourceMode);
+            weekBrowserDays.innerHTML = `
+                <div class="col-span-full bg-gray-50 border rounded p-3 text-sm text-gray-600">
+                    Loading counts for ${formatDateOnly(formatDateForInput(weekStart))} through ${formatDateOnly(formatDateForInput(weekEnd))}...
+                </div>
+            `;
+
+            const countsByDay = await Promise.all(
+                days.map(day => fetchDayCounts(formatDateForInput(day), keywordInput, sourceMode))
+            );
+
+            if (requestId !== weekBrowserRequestId) {
+                return;
+            }
+
+            weekBrowserDays.innerHTML = days
+                .map((day, index) => renderWeekDayButton(day, dateInput, countsByDay[index], sourceMode))
+                .join("");
+        }
+
+        async function searchSpecificDate(dateValue) {
+            document.getElementById("dateInput").value = dateValue;
+            await searchMedia();
+        }
+
+        async function moveWeekAndSearch(weekChange) {
+            const currentDate = getNavigatorBaseDate();
+
+            if (!currentDate) {
+                alert("Please search for a specific date first.");
+                return;
+            }
+
+            currentDate.setDate(currentDate.getDate() + (weekChange * 7));
 
             document.getElementById("dateInput").value = formatDateForInput(currentDate);
 
@@ -1277,6 +1589,7 @@
             const sourceMode = getSourceMode();
 
             showDateNavigator(dateInput, searchType);
+            loadWeekBrowser(dateInput, searchType, keywordInput, sourceMode);
 
             button.disabled = true;
             button.innerText = "Searching...";
@@ -1413,6 +1726,7 @@
             document.getElementById("statusMessage").innerText = "";
             document.getElementById("results").innerHTML = "";
             hideDateNavigator();
+            hideWeekBrowser();
         }
 
         document.addEventListener("DOMContentLoaded", () => {
