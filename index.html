@@ -140,10 +140,35 @@
 
         <div class="bg-white shadow rounded p-4 mb-5 border border-transparent">
             <div class="flex flex-wrap items-end gap-4 mb-4">
-                <label class="block">
-                    <span class="font-semibold">Date:</span>
-                    <input type="date" id="dateInput" class="border p-2 ml-2 rounded">
-                </label>
+                <div class="block">
+                    <label class="block">
+                        <span class="font-semibold">Date:</span>
+                        <input type="date" id="dateInput" class="border p-2 ml-2 rounded">
+                    </label>
+
+                    <div class="flex gap-2 mt-2 ml-12">
+                        <button 
+                            onclick="moveDateAndSearch(-1)" 
+                            class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-2 py-1 rounded text-xs"
+                        >
+                            ← Prev
+                        </button>
+
+                        <button 
+                            onclick="setTodayAndSearch()" 
+                            class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-2 py-1 rounded text-xs"
+                        >
+                            Today
+                        </button>
+
+                        <button 
+                            onclick="moveDateAndSearch(1)" 
+                            class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-2 py-1 rounded text-xs"
+                        >
+                            Next →
+                        </button>
+                    </div>
+                </div>
 
                 <label class="block">
                     <span class="font-semibold">Keyword:</span>
@@ -406,6 +431,42 @@
                 month: "long",
                 day: "numeric"
             });
+        }
+
+        function formatDateForInput(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+
+            return `${year}-${month}-${day}`;
+        }
+
+        function getSelectedDateOrToday() {
+            const dateInput = document.getElementById("dateInput").value;
+
+            if (dateInput) {
+                return new Date(dateInput + "T00:00:00");
+            }
+
+            return new Date();
+        }
+
+        async function moveDateAndSearch(dayChange) {
+            const currentDate = getSelectedDateOrToday();
+
+            currentDate.setDate(currentDate.getDate() + dayChange);
+
+            document.getElementById("dateInput").value = formatDateForInput(currentDate);
+
+            await searchMedia();
+        }
+
+        async function setTodayAndSearch() {
+            const today = new Date();
+
+            document.getElementById("dateInput").value = formatDateForInput(today);
+
+            await searchMedia();
         }
 
         function formatDuration(value) {
