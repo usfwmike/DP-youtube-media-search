@@ -1064,7 +1064,7 @@
                     data-month-day="${escapeHtml(flagItem.monthDay || "")}"
                     data-source-url="${escapeHtml(flagItem.sourceUrl || "")}"
                 >
-                    <div class="flex flex-wrap items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
                         <span class="text-sm font-semibold text-gray-700">Private Flag:</span>
 
                         <select class="archive-flag-status border rounded px-2 py-1 text-sm">
@@ -1075,11 +1075,20 @@
                             onclick="saveFlagFromButton(this)"
                             class="bg-amber-700 hover:bg-amber-800 text-white px-3 py-1 rounded text-sm"
                         >
-                            Save Flag
+                            Save Flag + Note
                         </button>
 
                         <span class="archive-flag-message text-xs text-gray-600"></span>
                     </div>
+
+                    <label class="block text-sm text-gray-700">
+                        <span class="font-semibold">Research Note:</span>
+                        <textarea
+                            class="archive-flag-note border rounded p-2 mt-1 w-full text-sm"
+                            rows="2"
+                            placeholder="Add a private note about why this item matters, how you might use it, or what to review later."
+                        ></textarea>
+                    </label>
                 </div>
             `;
         }
@@ -1098,6 +1107,7 @@
             }
 
             const select = wrapper.querySelector(".archive-flag-status");
+            const noteTextarea = wrapper.querySelector(".archive-flag-note");
             const message = wrapper.querySelector(".archive-flag-message");
             const originalText = button.innerText;
 
@@ -1108,7 +1118,8 @@
                 title: wrapper.dataset.title || "",
                 item_date: wrapper.dataset.itemDate || null,
                 month_day: wrapper.dataset.monthDay || null,
-                source_url: wrapper.dataset.sourceUrl || ""
+                source_url: wrapper.dataset.sourceUrl || "",
+                note_text: noteTextarea ? noteTextarea.value.trim() : ""
             };
 
             button.disabled = true;
@@ -1212,10 +1223,15 @@
                     }
 
                     const select = control.querySelector(".archive-flag-status");
+                    const noteTextarea = control.querySelector(".archive-flag-note");
                     const message = control.querySelector(".archive-flag-message");
 
                     if (select && flag.status) {
                         select.value = flag.status;
+                    }
+
+                    if (noteTextarea && flag.note_text) {
+                        noteTextarea.value = flag.note_text;
                     }
 
                     if (message && flag.updated_at) {
@@ -1373,13 +1389,22 @@
             const monthDayText = flag.month_day || "No MM-DD";
             const updatedText = flag.updated_at ? formatDateTime(flag.updated_at) : "Unknown";
             const sourceUrl = flag.source_url || "#";
+            const noteText = flag.note_text || "";
 
             return `
-                <div class="bg-white shadow rounded p-4 border border-transparent">
+                <div
+                    class="saved-flag-card bg-white shadow rounded p-4 border border-transparent"
+                    data-item-type="${escapeHtml(flag.item_type || "")}"
+                    data-item-key="${escapeHtml(flag.item_key || "")}"
+                    data-title="${escapeHtml(title)}"
+                    data-item-date="${escapeHtml(flag.item_date || "")}"
+                    data-month-day="${escapeHtml(flag.month_day || "")}"
+                    data-source-url="${escapeHtml(sourceUrl)}"
+                >
                     <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                         <div class="flex-1">
                             <div class="flex flex-wrap items-center gap-2 mb-2">
-                                <span class="text-xs font-semibold uppercase tracking-wide px-2 py-1 rounded ${getFlagStatusClass(status)}">
+                                <span class="saved-flag-status-pill text-xs font-semibold uppercase tracking-wide px-2 py-1 rounded ${getFlagStatusClass(status)}">
                                     ${escapeHtml(statusLabel)}
                                 </span>
                                 <span class="text-xs text-gray-600 uppercase tracking-wide">${escapeHtml(typeLabel)}</span>
@@ -1387,10 +1412,37 @@
 
                             <h3 class="text-lg font-bold text-gray-900 mb-2">${escapeHtml(decodeHtmlEntities(title))}</h3>
 
-                            <div class="text-sm text-gray-700 space-y-1">
+                            <div class="text-sm text-gray-700 space-y-1 mb-3">
                                 <div><span class="font-semibold">Date:</span> ${escapeHtml(dateText)} <span class="mx-1">·</span> <span class="font-semibold">MM-DD:</span> ${escapeHtml(monthDayText)}</div>
-                                <div><span class="font-semibold">Last updated:</span> ${escapeHtml(updatedText)}</div>
+                                <div><span class="font-semibold">Last updated:</span> <span class="saved-flag-updated-at">${escapeHtml(updatedText)}</span></div>
                                 <div><span class="font-semibold">Key:</span> <span class="font-mono text-xs">${escapeHtml(flag.item_key || "")}</span></div>
+                            </div>
+
+                            <div class="border-t pt-3 mt-3">
+                                <div class="flex flex-wrap items-center gap-2 mb-2">
+                                    <span class="text-sm font-semibold text-gray-700">Status:</span>
+                                    <select class="saved-flag-status border rounded px-2 py-1 text-sm">
+                                        ${renderFlagStatusOptions(status)}
+                                    </select>
+
+                                    <button
+                                        onclick="saveSavedFlagFromButton(this)"
+                                        class="bg-amber-700 hover:bg-amber-800 text-white px-3 py-1 rounded text-sm"
+                                    >
+                                        Save Note
+                                    </button>
+
+                                    <span class="saved-flag-message text-xs text-gray-600"></span>
+                                </div>
+
+                                <label class="block text-sm text-gray-700">
+                                    <span class="font-semibold">Research Note:</span>
+                                    <textarea
+                                        class="saved-flag-note border rounded p-2 mt-1 w-full text-sm"
+                                        rows="3"
+                                        placeholder="Add or update your private research note."
+                                    >${escapeHtml(noteText)}</textarea>
+                                </label>
                             </div>
                         </div>
 
@@ -1415,6 +1467,100 @@
                     </div>
                 </div>
             `;
+        }
+
+        async function saveSavedFlagFromButton(button) {
+            const wrapper = button.closest(".saved-flag-card");
+
+            if (!wrapper) {
+                return;
+            }
+
+            const adminKey = getOrPromptFlagAdminKey();
+
+            if (!adminKey) {
+                return;
+            }
+
+            const select = wrapper.querySelector(".saved-flag-status");
+            const noteTextarea = wrapper.querySelector(".saved-flag-note");
+            const message = wrapper.querySelector(".saved-flag-message");
+            const originalText = button.innerText;
+
+            const flag = {
+                item_type: wrapper.dataset.itemType || "",
+                item_key: wrapper.dataset.itemKey || "",
+                status: select ? select.value : "not_reviewed",
+                title: wrapper.dataset.title || "",
+                item_date: wrapper.dataset.itemDate || null,
+                month_day: wrapper.dataset.monthDay || null,
+                source_url: wrapper.dataset.sourceUrl || "",
+                note_text: noteTextarea ? noteTextarea.value.trim() : ""
+            };
+
+            button.disabled = true;
+            button.innerText = "Saving...";
+
+            if (message) {
+                message.innerText = "";
+            }
+
+            try {
+                const response = await fetch(`${workerUrl}?flags=true&t=${Date.now()}`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        admin_key: adminKey,
+                        action: "save_flag",
+                        flag
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.error || "Could not save note.");
+                }
+
+                if (message) {
+                    message.innerText = `Saved ${formatDateTime(data.saved?.updated_at || new Date().toISOString())}`;
+                }
+
+                const pill = wrapper.querySelector(".saved-flag-status-pill");
+                if (pill) {
+                    pill.className = `saved-flag-status-pill text-xs font-semibold uppercase tracking-wide px-2 py-1 rounded ${getFlagStatusClass(flag.status)}`;
+                    pill.innerText = flagStatusLabels[flag.status] || flag.status;
+                }
+
+                const updatedAt = wrapper.querySelector(".saved-flag-updated-at");
+                if (updatedAt) {
+                    updatedAt.innerText = formatDateTime(data.saved?.updated_at || new Date().toISOString());
+                }
+
+                savedFlagsCache = savedFlagsCache.map(existing => {
+                    if (existing.item_type === flag.item_type && existing.item_key === flag.item_key) {
+                        return {
+                            ...existing,
+                            ...flag,
+                            updated_at: data.saved?.updated_at || new Date().toISOString()
+                        };
+                    }
+                    return existing;
+                });
+            } catch (error) {
+                console.error("Saved flag note error:", error);
+
+                if (message) {
+                    message.innerText = "Could not save note.";
+                }
+
+                alert(`Could not save note: ${error.message}`);
+            } finally {
+                button.disabled = false;
+                button.innerText = originalText;
+            }
         }
 
         async function quickSearch(keyword) {
