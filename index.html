@@ -106,7 +106,8 @@
 
         html.dark #statusMessage,
         html.dark #statsMessage,
-        html.dark #healthMessage {
+        html.dark #healthMessage,
+        html.dark #savedFlagsMessage {
             color: #cbd5e1 !important;
         }
     </style>
@@ -328,6 +329,13 @@
                     >
                         Flag Admin Key
                     </button>
+
+                    <button 
+                        onclick="loadSavedFlagsDashboard()" 
+                        class="bg-cyan-700 hover:bg-cyan-800 text-white px-4 py-2 rounded text-sm"
+                    >
+                        Saved Flags
+                    </button>
                 </div>
             </div>
 
@@ -391,6 +399,24 @@
             </div>
 
             <div id="healthDashboardContent"></div>
+        </div>
+
+        <div id="savedFlagsDashboard" class="hidden bg-white shadow rounded p-4 mb-5 border border-transparent">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-lg font-bold">Saved Flags / Bookmarks</h2>
+                    <p id="savedFlagsMessage" class="text-sm text-gray-600">Private saved archive flags.</p>
+                </div>
+
+                <button 
+                    onclick="hideSavedFlagsDashboard()" 
+                    class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm"
+                >
+                    Hide
+                </button>
+            </div>
+
+            <div id="savedFlagsDashboardContent"></div>
         </div>
 
         <p id="statusMessage" class="mb-4 text-gray-800 font-medium"></p>
@@ -1199,6 +1225,196 @@
             } catch (error) {
                 console.error("Flag hydrate error:", error);
             }
+        }
+
+
+        let savedFlagsCache = [];
+        let savedFlagsActiveFilter = "all";
+
+        async function loadSavedFlagsDashboard() {
+            const dashboard = document.getElementById("savedFlagsDashboard");
+            const message = document.getElementById("savedFlagsMessage");
+            const content = document.getElementById("savedFlagsDashboardContent");
+            const adminKey = getOrPromptFlagAdminKey();
+
+            if (!adminKey) {
+                return;
+            }
+
+            dashboard.classList.remove("hidden");
+            message.innerText = "Loading saved flags...";
+            content.innerHTML = `
+                <div class="bg-gray-50 border rounded p-3 text-gray-700">
+                    Loading saved flags and bookmarks...
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`${workerUrl}?flags=true&t=${Date.now()}`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        admin_key: adminKey,
+                        action: "get_flags",
+                        items: []
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.error || "Could not load saved flags.");
+                }
+
+                savedFlagsCache = Array.isArray(data.flags) ? data.flags : [];
+                savedFlagsActiveFilter = "all";
+                renderSavedFlagsDashboard(savedFlagsCache, savedFlagsActiveFilter);
+
+                message.innerText = `${savedFlagsCache.length} saved flag(s) loaded.`;
+            } catch (error) {
+                console.error("Saved flags error:", error);
+                message.innerText = "Could not load saved flags.";
+                content.innerHTML = `
+                    <div class="bg-white shadow rounded p-4 text-gray-700 border border-transparent">
+                        Could not load saved flags. Please verify your flag admin key and try again.
+                    </div>
+                `;
+            }
+        }
+
+        function hideSavedFlagsDashboard() {
+            document.getElementById("savedFlagsDashboard").classList.add("hidden");
+        }
+
+        function showSavedFlagsFilter(status) {
+            savedFlagsActiveFilter = status;
+            renderSavedFlagsDashboard(savedFlagsCache, savedFlagsActiveFilter);
+        }
+
+        function getFlagStatusClass(status) {
+            if (status === "interesting") return "bg-green-100 text-green-900";
+            if (status === "contribution_idea") return "bg-orange-100 text-orange-900";
+            if (status === "reviewed") return "bg-blue-100 text-blue-900";
+            if (status === "already_used") return "bg-purple-100 text-purple-900";
+            return "bg-gray-200 text-gray-800";
+        }
+
+        function renderSavedFlagsDashboard(flags, activeFilter = "all") {
+            const content = document.getElementById("savedFlagsDashboardContent");
+            const sortedFlags = [...flags].sort((a, b) => {
+                const updatedA = a.updated_at || "";
+                const updatedB = b.updated_at || "";
+                return updatedB.localeCompare(updatedA);
+            });
+
+            const filteredFlags = activeFilter === "all"
+                ? sortedFlags
+                : sortedFlags.filter(flag => flag.status === activeFilter);
+
+            const countsByStatus = sortedFlags.reduce((counts, flag) => {
+                const status = flag.status || "not_reviewed";
+                counts[status] = (counts[status] || 0) + 1;
+                return counts;
+            }, {});
+
+            const filterButtons = [
+                ["all", `All (${sortedFlags.length})`],
+                ["interesting", `Interesting (${countsByStatus.interesting || 0})`],
+                ["contribution_idea", `Contribution Ideas (${countsByStatus.contribution_idea || 0})`],
+                ["reviewed", `Reviewed (${countsByStatus.reviewed || 0})`],
+                ["already_used", `Already Used (${countsByStatus.already_used || 0})`],
+                ["not_reviewed", `Not Reviewed (${countsByStatus.not_reviewed || 0})`]
+            ].map(([status, label]) => {
+                const activeClass = status === activeFilter
+                    ? "bg-cyan-700 text-white"
+                    : "bg-gray-200 hover:bg-gray-300 text-gray-800";
+
+                return `
+                    <button
+                        onclick="showSavedFlagsFilter('${escapeHtml(status)}')"
+                        class="${activeClass} px-3 py-1 rounded text-sm"
+                    >
+                        ${escapeHtml(label)}
+                    </button>
+                `;
+            }).join("");
+
+            const cards = filteredFlags.length
+                ? filteredFlags.map(renderSavedFlagCard).join("")
+                : `
+                    <div class="bg-gray-50 border rounded p-4 text-gray-700">
+                        No saved flags match this filter.
+                    </div>
+                `;
+
+            content.innerHTML = `
+                <div class="flex flex-wrap gap-2 mb-4">
+                    ${filterButtons}
+                </div>
+
+                <div class="space-y-3">
+                    ${cards}
+                </div>
+            `;
+        }
+
+        function renderSavedFlagCard(flag) {
+            const status = flag.status || "not_reviewed";
+            const statusLabel = flagStatusLabels[status] || status;
+            const title = flag.title || "Untitled saved item";
+            const typeLabel = flag.item_type === "youtube"
+                ? "YouTube"
+                : flag.item_type === "podcast"
+                    ? "Podcast"
+                    : flag.item_type || "Item";
+            const dateText = flag.item_date ? formatDateOnly(flag.item_date) : "No date";
+            const monthDayText = flag.month_day || "No MM-DD";
+            const updatedText = flag.updated_at ? formatDateTime(flag.updated_at) : "Unknown";
+            const sourceUrl = flag.source_url || "#";
+
+            return `
+                <div class="bg-white shadow rounded p-4 border border-transparent">
+                    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                        <div class="flex-1">
+                            <div class="flex flex-wrap items-center gap-2 mb-2">
+                                <span class="text-xs font-semibold uppercase tracking-wide px-2 py-1 rounded ${getFlagStatusClass(status)}">
+                                    ${escapeHtml(statusLabel)}
+                                </span>
+                                <span class="text-xs text-gray-600 uppercase tracking-wide">${escapeHtml(typeLabel)}</span>
+                            </div>
+
+                            <h3 class="text-lg font-bold text-gray-900 mb-2">${escapeHtml(decodeHtmlEntities(title))}</h3>
+
+                            <div class="text-sm text-gray-700 space-y-1">
+                                <div><span class="font-semibold">Date:</span> ${escapeHtml(dateText)} <span class="mx-1">·</span> <span class="font-semibold">MM-DD:</span> ${escapeHtml(monthDayText)}</div>
+                                <div><span class="font-semibold">Last updated:</span> ${escapeHtml(updatedText)}</div>
+                                <div><span class="font-semibold">Key:</span> <span class="font-mono text-xs">${escapeHtml(flag.item_key || "")}</span></div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <a
+                                href="${escapeHtml(sourceUrl)}"
+                                target="_blank"
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm"
+                            >
+                                Open Link
+                            </a>
+
+                            ${flag.month_day ? `
+                                <button
+                                    onclick="setMonthDayAndBrowse('${escapeHtml(flag.month_day)}')"
+                                    class="bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded text-sm"
+                                >
+                                    Open Date
+                                </button>
+                            ` : ""}
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         async function quickSearch(keyword) {
