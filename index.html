@@ -321,6 +321,13 @@
                     >
                         Health Dashboard
                     </button>
+
+                    <button 
+                        onclick="setFlagAdminKey()" 
+                        class="bg-amber-700 hover:bg-amber-800 text-white px-4 py-2 rounded text-sm"
+                    >
+                        Flag Admin Key
+                    </button>
                 </div>
             </div>
 
@@ -951,6 +958,249 @@
             await copyText(post, button);
         }
 
+
+        const flagAdminKeyStorageKey = "dpArchiveFlagAdminKey";
+
+        const flagStatusLabels = {
+            not_reviewed: "Not Reviewed",
+            interesting: "Interesting",
+            reviewed: "Reviewed",
+            already_used: "Already Used",
+            contribution_idea: "Contribution Idea"
+        };
+
+        function getStoredFlagAdminKey() {
+            return localStorage.getItem(flagAdminKeyStorageKey) || "";
+        }
+
+        function setFlagAdminKey() {
+            const currentKey = getStoredFlagAdminKey();
+            const newKey = prompt(
+                "Enter your private flag admin key. Leave blank and click OK to clear it from this browser.",
+                currentKey
+            );
+
+            if (newKey === null) {
+                return;
+            }
+
+            const cleanedKey = newKey.trim();
+
+            if (!cleanedKey) {
+                localStorage.removeItem(flagAdminKeyStorageKey);
+                document.getElementById("statusMessage").innerText = "Flag admin key cleared from this browser.";
+                return;
+            }
+
+            localStorage.setItem(flagAdminKeyStorageKey, cleanedKey);
+            document.getElementById("statusMessage").innerText = "Flag admin key saved in this browser.";
+            hydrateFlagsForVisibleCards();
+        }
+
+        function getOrPromptFlagAdminKey() {
+            const storedKey = getStoredFlagAdminKey();
+
+            if (storedKey) {
+                return storedKey;
+            }
+
+            const enteredKey = prompt("Enter your private flag admin key to save archive flags.");
+
+            if (!enteredKey || !enteredKey.trim()) {
+                return "";
+            }
+
+            const cleanedKey = enteredKey.trim();
+            localStorage.setItem(flagAdminKeyStorageKey, cleanedKey);
+            return cleanedKey;
+        }
+
+        function renderFlagStatusOptions(selectedStatus = "not_reviewed") {
+            return Object.entries(flagStatusLabels)
+                .map(([value, label]) => `
+                    <option value="${escapeHtml(value)}" ${value === selectedStatus ? "selected" : ""}>${escapeHtml(label)}</option>
+                `)
+                .join("");
+        }
+
+        function renderFlagControls(flagItem) {
+            if (!flagItem || !flagItem.itemKey) {
+                return "";
+            }
+
+            return `
+                <div 
+                    class="archive-flag-control mt-4 border-t pt-3"
+                    data-item-type="${escapeHtml(flagItem.itemType)}"
+                    data-item-key="${escapeHtml(flagItem.itemKey)}"
+                    data-title="${escapeHtml(flagItem.title || "")}"
+                    data-item-date="${escapeHtml(flagItem.itemDate || "")}"
+                    data-month-day="${escapeHtml(flagItem.monthDay || "")}"
+                    data-source-url="${escapeHtml(flagItem.sourceUrl || "")}"
+                >
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-sm font-semibold text-gray-700">Private Flag:</span>
+
+                        <select class="archive-flag-status border rounded px-2 py-1 text-sm">
+                            ${renderFlagStatusOptions()}
+                        </select>
+
+                        <button
+                            onclick="saveFlagFromButton(this)"
+                            class="bg-amber-700 hover:bg-amber-800 text-white px-3 py-1 rounded text-sm"
+                        >
+                            Save Flag
+                        </button>
+
+                        <span class="archive-flag-message text-xs text-gray-600"></span>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function saveFlagFromButton(button) {
+            const wrapper = button.closest(".archive-flag-control");
+
+            if (!wrapper) {
+                return;
+            }
+
+            const adminKey = getOrPromptFlagAdminKey();
+
+            if (!adminKey) {
+                return;
+            }
+
+            const select = wrapper.querySelector(".archive-flag-status");
+            const message = wrapper.querySelector(".archive-flag-message");
+            const originalText = button.innerText;
+
+            const flag = {
+                item_type: wrapper.dataset.itemType || "",
+                item_key: wrapper.dataset.itemKey || "",
+                status: select ? select.value : "not_reviewed",
+                title: wrapper.dataset.title || "",
+                item_date: wrapper.dataset.itemDate || null,
+                month_day: wrapper.dataset.monthDay || null,
+                source_url: wrapper.dataset.sourceUrl || ""
+            };
+
+            button.disabled = true;
+            button.innerText = "Saving...";
+
+            if (message) {
+                message.innerText = "";
+            }
+
+            try {
+                const response = await fetch(`${workerUrl}?flags=true&t=${Date.now()}`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        admin_key: adminKey,
+                        action: "save_flag",
+                        flag
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.error || "Could not save flag.");
+                }
+
+                if (message) {
+                    message.innerText = `Saved: ${flagStatusLabels[flag.status] || flag.status}`;
+                }
+            } catch (error) {
+                console.error("Flag save error:", error);
+
+                if (message) {
+                    message.innerText = "Could not save flag.";
+                }
+
+                alert(`Could not save flag: ${error.message}`);
+            } finally {
+                button.disabled = false;
+                button.innerText = originalText;
+            }
+        }
+
+        async function hydrateFlagsForVisibleCards() {
+            const adminKey = getStoredFlagAdminKey();
+
+            if (!adminKey) {
+                return;
+            }
+
+            const controls = Array.from(document.querySelectorAll(".archive-flag-control"));
+
+            if (!controls.length) {
+                return;
+            }
+
+            const items = controls
+                .map(control => ({
+                    item_type: control.dataset.itemType || "",
+                    item_key: control.dataset.itemKey || ""
+                }))
+                .filter(item => item.item_type && item.item_key);
+
+            if (!items.length) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${workerUrl}?flags=true&t=${Date.now()}`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        admin_key: adminKey,
+                        action: "get_flags",
+                        items
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.error || "Could not load flags.");
+                }
+
+                const flagMap = new Map();
+
+                (data.flags || []).forEach(flag => {
+                    flagMap.set(`${flag.item_type}::${flag.item_key}`, flag);
+                });
+
+                controls.forEach(control => {
+                    const key = `${control.dataset.itemType || ""}::${control.dataset.itemKey || ""}`;
+                    const flag = flagMap.get(key);
+
+                    if (!flag) {
+                        return;
+                    }
+
+                    const select = control.querySelector(".archive-flag-status");
+                    const message = control.querySelector(".archive-flag-message");
+
+                    if (select && flag.status) {
+                        select.value = flag.status;
+                    }
+
+                    if (message && flag.updated_at) {
+                        message.innerText = `Saved ${formatDateTime(flag.updated_at)}`;
+                    }
+                });
+            } catch (error) {
+                console.error("Flag hydrate error:", error);
+            }
+        }
+
         async function quickSearch(keyword) {
             document.getElementById("keywordInput").value = keyword;
             await searchMedia();
@@ -1141,6 +1391,7 @@
                 }
 
                 resultsDiv.insertAdjacentHTML("beforeend", renderPodcastSection(podcastItems, dateInput, keywordInput));
+                hydrateFlagsForVisibleCards();
 
                 return podcastItems.length;
             } catch (error) {
@@ -1168,6 +1419,14 @@
             const thumbnail = item.thumbnail || "";
             const itemUrl = item.url || "#";
             const socialPost = buildSocialPost(item);
+            const flagControls = renderFlagControls({
+                itemType: "youtube",
+                itemKey: item.video_id || itemUrl,
+                title: decodeHtmlEntities(item.title || ""),
+                itemDate: item.date || "",
+                monthDay: item.month_day || "",
+                sourceUrl: itemUrl
+            });
 
             return `
                 <div class="bg-white shadow rounded overflow-hidden border border-transparent">
@@ -1228,6 +1487,8 @@
                                     Copy Social Post
                                 </button>
                             </div>
+
+                            ${flagControls}
                         </div>
                     </div>
                 </div>
@@ -1248,6 +1509,14 @@
             const copyButtonText = hasOmnyPage ? "Copy Podcast Link" : "Copy Audio Link";
             const podcastPost = buildPodcastSocialPost(item);
             const safeAppearanceNames = escapeHtml(item.appearance_names || "");
+            const flagControls = renderFlagControls({
+                itemType: "podcast",
+                itemKey: item.guid || bestPodcastLink,
+                title: decodeHtmlEntities(item.title || ""),
+                itemDate: item.date || "",
+                monthDay: item.month_day || "",
+                sourceUrl: bestPodcastLink
+            });
 
             return `
                 <div class="bg-white shadow rounded overflow-hidden border border-transparent">
@@ -1360,6 +1629,8 @@
                                     Copy Podcast Post
                                 </button>
                             </div>
+
+                            ${flagControls}
                         </div>
                     </div>
                 </div>
@@ -1635,6 +1906,8 @@
                 } else {
                     renderRegularResults(filteredData);
                 }
+
+                hydrateFlagsForVisibleCards();
 
                 if (searchType === "normal" && sourceMode === "both" && (dateInput || keywordInput)) {
                     const podcastCount = await appendPodcastSection({ dateInput, keywordInput });
