@@ -108,19 +108,6 @@
         html.dark #statsMessage {
             color: #cbd5e1 !important;
         }
-
-        html.dark .bg-blue-50 {
-            background: #1e3a8a !important;
-        }
-
-        html.dark .border-blue-600 {
-            border-color: #60a5fa !important;
-        }
-
-        html.dark .text-blue-700,
-        html.dark .text-blue-800 {
-            color: #dbeafe !important;
-        }
     </style>
 </head>
 
@@ -184,6 +171,13 @@
                 </button>
 
                 <button 
+                    onclick="showUpcomingOnThisDay(14)" 
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded"
+                >
+                    Upcoming Dates
+                </button>
+
+                <button 
                     onclick="showRecentlyAdded()" 
                     class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
                 >
@@ -222,6 +216,14 @@
                     <p class="text-sm text-gray-600">
                         Accepts 06-11, 6-11, or 6/11.
                     </p>
+                </div>
+
+                <div class="flex flex-wrap gap-2 mt-3">
+                    <button onclick="setMonthDayAndBrowse(getTodayMonthDay())" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Today</button>
+                    <button onclick="setMonthDayAndBrowse(getRelativeMonthDay(1))" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm">Tomorrow</button>
+                    <button onclick="showUpcomingOnThisDay(7)" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-900 px-3 py-1 rounded text-sm">Next 7 days</button>
+                    <button onclick="showUpcomingOnThisDay(14)" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-900 px-3 py-1 rounded text-sm">Next 14 days</button>
+                    <button onclick="showUpcomingOnThisDay(30)" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-900 px-3 py-1 rounded text-sm">Next 30 days</button>
                 </div>
             </div>
 
@@ -358,55 +360,6 @@
 
         <p id="statusMessage" class="mb-4 text-gray-800 font-medium"></p>
 
-        <div id="dateNavigator" class="hidden bg-white shadow rounded p-3 mb-4 border border-transparent">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <button
-                    onclick="moveDateAndSearch(-1)"
-                    class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm"
-                >
-                    ← Prev
-                </button>
-
-                <div class="text-center flex-1 min-w-48">
-                    <div class="text-xs uppercase tracking-wide text-gray-500">Browsing Date</div>
-                    <div id="dateNavigatorLabel" class="font-bold text-lg text-gray-900">—</div>
-                </div>
-
-                <button
-                    onclick="moveDateAndSearch(1)"
-                    class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm"
-                >
-                    Next →
-                </button>
-            </div>
-        </div>
-
-        <div id="weekBrowser" class="hidden bg-white shadow rounded p-4 mb-4 border border-transparent">
-            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-                <button
-                    onclick="moveWeekAndSearch(-1)"
-                    class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm"
-                >
-                    ← Previous Week
-                </button>
-
-                <div class="text-center flex-1 min-w-64">
-                    <div class="text-xs uppercase tracking-wide text-gray-500">Week Browser</div>
-                    <div id="weekBrowserLabel" class="font-bold text-lg text-gray-900">—</div>
-                    <div id="weekBrowserContext" class="text-xs text-gray-600 mt-1">—</div>
-                </div>
-
-                <button
-                    onclick="moveWeekAndSearch(1)"
-                    class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm"
-                >
-                    Next Week →
-                </button>
-            </div>
-
-            <div id="weekBrowserDays" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2"></div>
-        </div>
-
         <div id="results" class="space-y-4"></div>
     </div>
 
@@ -468,364 +421,6 @@
                 month: "long",
                 day: "numeric"
             });
-        }
-
-        function formatDateForInput(date) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-
-            return `${year}-${month}-${day}`;
-        }
-
-        function formatDateWithWeekday(value) {
-            if (!value) return "";
-
-            const date = new Date(value + "T00:00:00");
-
-            if (isNaN(date.getTime())) {
-                return value;
-            }
-
-            return date.toLocaleDateString(undefined, {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric"
-            });
-        }
-
-        function showDateNavigator(dateInput, searchType) {
-            const navigator = document.getElementById("dateNavigator");
-            const label = document.getElementById("dateNavigatorLabel");
-
-            if (!navigator || !label) return;
-
-            if (searchType === "normal" && dateInput) {
-                navigator.setAttribute("data-active-date", dateInput);
-                label.innerText = formatDateWithWeekday(dateInput);
-                navigator.classList.remove("hidden");
-            } else {
-                hideDateNavigator();
-            }
-        }
-
-        function hideDateNavigator() {
-            const navigator = document.getElementById("dateNavigator");
-            const label = document.getElementById("dateNavigatorLabel");
-
-            if (!navigator || !label) return;
-
-            navigator.removeAttribute("data-active-date");
-            label.innerText = "—";
-            navigator.classList.add("hidden");
-        }
-
-        function getNavigatorBaseDate() {
-            const navigator = document.getElementById("dateNavigator");
-            const navDate = navigator ? navigator.getAttribute("data-active-date") : "";
-            const inputDate = document.getElementById("dateInput").value;
-            const dateValue = navDate || inputDate;
-
-            if (!dateValue) {
-                return null;
-            }
-
-            const date = new Date(dateValue + "T00:00:00");
-
-            if (isNaN(date.getTime())) {
-                return null;
-            }
-
-            return date;
-        }
-
-        async function moveDateAndSearch(dayChange) {
-            const currentDate = getNavigatorBaseDate();
-
-            if (!currentDate) {
-                alert("Please search for a specific date first.");
-                return;
-            }
-
-            currentDate.setDate(currentDate.getDate() + dayChange);
-
-            document.getElementById("dateInput").value = formatDateForInput(currentDate);
-
-            await searchMedia();
-        }
-
-        let weekBrowserRequestId = 0;
-
-        function getWeekStartSunday(date) {
-            const weekStart = new Date(date);
-            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-            return weekStart;
-        }
-
-        function addDays(date, days) {
-            const newDate = new Date(date);
-            newDate.setDate(newDate.getDate() + days);
-            return newDate;
-        }
-
-        function formatShortMonthDay(date) {
-            return date.toLocaleDateString(undefined, {
-                month: "short",
-                day: "numeric"
-            });
-        }
-
-        function getWeekBrowserContextText(keywordInput, sourceMode) {
-            const parts = [];
-
-            if (sourceMode === "both") {
-                parts.push("Showing YouTube and podcast counts");
-            } else if (sourceMode === "youtube") {
-                parts.push("Showing YouTube counts");
-            } else if (sourceMode === "podcasts") {
-                parts.push("Showing podcast counts");
-            }
-
-            if (keywordInput) {
-                parts.push(`Keyword: ${keywordInput}`);
-            }
-
-            if (document.getElementById("fullInterviewOnly").checked) {
-                parts.push("Full Interviews only");
-            }
-
-            if (document.getElementById("excludeOpens").checked) {
-                parts.push("Excluding Opens / Cold Opens");
-            }
-
-            return parts.join(" · ");
-        }
-
-        function isEmptyResultPayload(data, emptyTitle) {
-            return !data || data.length === 0 || data[0].title === emptyTitle;
-        }
-
-        async function fetchYouTubeCountForDate(dateValue, keywordInput) {
-            const params = new URLSearchParams();
-            params.append("date", dateValue);
-
-            if (keywordInput) {
-                params.append("query", keywordInput);
-            }
-
-            params.append("t", Date.now());
-
-            const response = await fetch(`${workerUrl}?${params.toString()}`);
-
-            if (!response.ok) {
-                throw new Error("Failed to fetch YouTube count");
-            }
-
-            const data = await response.json();
-
-            if (isEmptyResultPayload(data, "No results found")) {
-                return 0;
-            }
-
-            return data.filter(resultMatchesFilters).length;
-        }
-
-        async function fetchPodcastCountForDate(dateValue, keywordInput) {
-            const params = new URLSearchParams();
-            params.append("podcasts", "true");
-            params.append("date", dateValue);
-
-            if (keywordInput) {
-                params.append("query", keywordInput);
-            }
-
-            params.append("t", Date.now());
-
-            const response = await fetch(`${workerUrl}?${params.toString()}`);
-
-            if (!response.ok) {
-                throw new Error("Failed to fetch podcast count");
-            }
-
-            const data = await response.json();
-
-            if (isEmptyResultPayload(data, "No podcast episodes found")) {
-                return 0;
-            }
-
-            return data.length;
-        }
-
-        async function fetchDayCounts(dateValue, keywordInput, sourceMode) {
-            const counts = {
-                youtube: null,
-                podcasts: null,
-                error: false
-            };
-
-            const tasks = [];
-
-            if (sourceMode !== "podcasts") {
-                tasks.push(
-                    fetchYouTubeCountForDate(dateValue, keywordInput)
-                        .then(count => {
-                            counts.youtube = count;
-                        })
-                );
-            }
-
-            if (sourceMode !== "youtube") {
-                tasks.push(
-                    fetchPodcastCountForDate(dateValue, keywordInput)
-                        .then(count => {
-                            counts.podcasts = count;
-                        })
-                );
-            }
-
-            try {
-                await Promise.all(tasks);
-            } catch (error) {
-                console.error("Week browser count error:", error);
-                counts.error = true;
-            }
-
-            return counts;
-        }
-
-        function formatCountLabel(counts, sourceMode) {
-            if (counts.error) {
-                return "Could not check";
-            }
-
-            const youtubeCount = counts.youtube || 0;
-            const podcastCount = counts.podcasts || 0;
-
-            if (sourceMode === "youtube") {
-                return youtubeCount > 0 ? `Y ${youtubeCount}` : "No data";
-            }
-
-            if (sourceMode === "podcasts") {
-                return podcastCount > 0 ? `P ${podcastCount}` : "No data";
-            }
-
-            const parts = [];
-
-            if (youtubeCount > 0) {
-                parts.push(`Y ${youtubeCount}`);
-            }
-
-            if (podcastCount > 0) {
-                parts.push(`P ${podcastCount}`);
-            }
-
-            return parts.length ? parts.join(" / ") : "No data";
-        }
-
-        function renderWeekDayButton(date, selectedDateValue, counts, sourceMode) {
-            const dateValue = formatDateForInput(date);
-            const isSelected = dateValue === selectedDateValue;
-            const dayName = date.toLocaleDateString(undefined, { weekday: "short" });
-            const countLabel = formatCountLabel(counts, sourceMode);
-
-            const selectedClasses = isSelected
-                ? "border-blue-600 bg-blue-50 text-blue-800"
-                : "border bg-gray-50 hover:bg-gray-100 text-gray-800";
-
-            const selectedLabel = isSelected
-                ? `<div class="mt-2 text-xs font-bold text-blue-700">Selected</div>`
-                : "";
-
-            return `
-                <button
-                    onclick="searchSpecificDate('${dateValue}')"
-                    class="rounded p-3 text-left ${selectedClasses}"
-                    title="Search ${formatDateWithWeekday(dateValue)}"
-                >
-                    <div class="font-bold">${dayName}</div>
-                    <div class="text-sm">${formatShortMonthDay(date)}</div>
-                    <div class="mt-2 text-xs">${countLabel}</div>
-                    ${selectedLabel}
-                </button>
-            `;
-        }
-
-        function hideWeekBrowser() {
-            const weekBrowser = document.getElementById("weekBrowser");
-            const weekBrowserDays = document.getElementById("weekBrowserDays");
-
-            if (!weekBrowser || !weekBrowserDays) return;
-
-            weekBrowser.classList.add("hidden");
-            weekBrowserDays.innerHTML = "";
-        }
-
-        async function loadWeekBrowser(dateInput, searchType, keywordInput, sourceMode) {
-            const weekBrowser = document.getElementById("weekBrowser");
-            const weekBrowserLabel = document.getElementById("weekBrowserLabel");
-            const weekBrowserContext = document.getElementById("weekBrowserContext");
-            const weekBrowserDays = document.getElementById("weekBrowserDays");
-
-            if (!weekBrowser || !weekBrowserLabel || !weekBrowserContext || !weekBrowserDays) return;
-
-            if (searchType !== "normal" || !dateInput) {
-                hideWeekBrowser();
-                return;
-            }
-
-            const selectedDate = new Date(dateInput + "T00:00:00");
-
-            if (isNaN(selectedDate.getTime())) {
-                hideWeekBrowser();
-                return;
-            }
-
-            const requestId = ++weekBrowserRequestId;
-            const weekStart = getWeekStartSunday(selectedDate);
-            const weekEnd = addDays(weekStart, 6);
-            const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
-
-            weekBrowser.classList.remove("hidden");
-            weekBrowserLabel.innerText = `Week of ${formatDateWithWeekday(formatDateForInput(weekStart))}`;
-            weekBrowserContext.innerText = getWeekBrowserContextText(keywordInput, sourceMode);
-            weekBrowserDays.innerHTML = `
-                <div class="col-span-full bg-gray-50 border rounded p-3 text-sm text-gray-600">
-                    Loading counts for ${formatDateOnly(formatDateForInput(weekStart))} through ${formatDateOnly(formatDateForInput(weekEnd))}...
-                </div>
-            `;
-
-            const countsByDay = await Promise.all(
-                days.map(day => fetchDayCounts(formatDateForInput(day), keywordInput, sourceMode))
-            );
-
-            if (requestId !== weekBrowserRequestId) {
-                return;
-            }
-
-            weekBrowserDays.innerHTML = days
-                .map((day, index) => renderWeekDayButton(day, dateInput, countsByDay[index], sourceMode))
-                .join("");
-        }
-
-        async function searchSpecificDate(dateValue) {
-            document.getElementById("dateInput").value = dateValue;
-            await searchMedia();
-        }
-
-        async function moveWeekAndSearch(weekChange) {
-            const currentDate = getNavigatorBaseDate();
-
-            if (!currentDate) {
-                alert("Please search for a specific date first.");
-                return;
-            }
-
-            currentDate.setDate(currentDate.getDate() + (weekChange * 7));
-
-            document.getElementById("dateInput").value = formatDateForInput(currentDate);
-
-            await searchMedia();
         }
 
         function formatDuration(value) {
@@ -958,6 +553,46 @@
             const day = String(today.getDate()).padStart(2, "0");
 
             return `${month}-${day}`;
+        }
+
+        function getRelativeDate(daysAhead) {
+            const date = new Date();
+            date.setHours(12, 0, 0, 0);
+            date.setDate(date.getDate() + daysAhead);
+            return date;
+        }
+
+        function getRelativeMonthDay(daysAhead) {
+            const date = getRelativeDate(daysAhead);
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+            return `${month}-${day}`;
+        }
+
+        function getUpcomingDateRows(daysToShow) {
+            const rows = [];
+
+            for (let index = 0; index < daysToShow; index++) {
+                const date = getRelativeDate(index);
+                const month = String(date.getMonth() + 1).padStart(2, "0");
+                const day = String(date.getDate()).padStart(2, "0");
+
+                rows.push({
+                    label: date.toLocaleDateString(undefined, {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric"
+                    }),
+                    fullLabel: date.toLocaleDateString(undefined, {
+                        weekday: "long",
+                        month: "long",
+                        day: "numeric"
+                    }),
+                    monthDay: `${month}-${day}`
+                });
+            }
+
+            return rows;
         }
 
         function normalizeMonthDay(value) {
@@ -1194,6 +829,79 @@
             params.append("t", Date.now());
 
             await runSearch(params, "monthDayBrowse", monthDay);
+        }
+
+        async function setMonthDayAndBrowse(monthDay) {
+            document.getElementById("monthDayInput").value = monthDay;
+            await browseMonthDay();
+        }
+
+        async function fetchYoutubeByMonthDay(monthDay) {
+            const params = new URLSearchParams();
+            params.append("month_day", monthDay);
+            params.append("t", Date.now());
+
+            const response = await fetch(`${workerUrl}?${params.toString()}`);
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch YouTube count for ${monthDay}`);
+            }
+
+            const data = await response.json();
+
+            if (!data || data.length === 0 || data[0].title === "No results found") {
+                return [];
+            }
+
+            return data.filter(resultMatchesFilters);
+        }
+
+        async function showUpcomingOnThisDay(daysToShow = 14) {
+            const statusMessage = document.getElementById("statusMessage");
+            const resultsDiv = document.getElementById("results");
+            const rows = getUpcomingDateRows(daysToShow);
+
+            statusMessage.innerText = `Checking the next ${daysToShow} calendar date(s)...`;
+            resultsDiv.innerHTML = `
+                <div class="bg-white shadow rounded p-4 text-gray-700 border border-transparent">
+                    Loading upcoming DP Show history dates...
+                </div>
+            `;
+
+            try {
+                const results = [];
+
+                for (const row of rows) {
+                    const items = await fetchYoutubeByMonthDay(row.monthDay);
+
+                    const years = [...new Set(
+                        items
+                            .map(item => item.date ? String(item.date).slice(0, 4) : "")
+                            .filter(Boolean)
+                    )].sort((a, b) => b.localeCompare(a));
+
+                    results.push({
+                        ...row,
+                        youtubeCount: items.length,
+                        yearCount: years.length,
+                        years: years.slice(0, 8)
+                    });
+                }
+
+                renderUpcomingOnThisDay(results, daysToShow);
+
+                const totalVideos = results.reduce((sum, row) => sum + row.youtubeCount, 0);
+                const datesWithVideos = results.filter(row => row.youtubeCount > 0).length;
+                statusMessage.innerText = `Upcoming on-this-date view: ${datesWithVideos} of ${daysToShow} date(s) have YouTube results, ${totalVideos} total video(s).`;
+            } catch (error) {
+                console.error("Upcoming dates error:", error);
+                statusMessage.innerText = "Could not load upcoming dates.";
+                resultsDiv.innerHTML = `
+                    <div class="bg-white shadow rounded p-4 text-gray-700 border border-transparent">
+                        Could not load upcoming dates. Please try again.
+                    </div>
+                `;
+            }
         }
 
         async function showOnThisDay() {
@@ -1527,6 +1235,55 @@
             `;
         }
 
+        function renderUpcomingOnThisDay(rows, daysToShow) {
+            const resultsDiv = document.getElementById("results");
+            const filterText = describeActiveFilters();
+
+            const cards = rows.map(row => {
+                const hasVideos = row.youtubeCount > 0;
+                const yearText = row.years.length
+                    ? `Years: ${row.years.join(", ")}${row.yearCount > row.years.length ? "..." : ""}`
+                    : "No years found yet";
+
+                return `
+                    <div class="bg-white shadow rounded p-4 border border-transparent">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                            <div>
+                                <div class="text-sm text-gray-600 font-semibold">${escapeHtml(row.fullLabel)}</div>
+                                <div class="text-2xl font-bold text-gray-900">${escapeHtml(row.monthDay)}</div>
+                                <div class="text-sm text-gray-600 mt-1">${escapeHtml(yearText)}</div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-3">
+                                <div class="rounded bg-gray-100 px-3 py-2 text-center min-w-24">
+                                    <div class="text-xs uppercase tracking-wide text-gray-600">YouTube</div>
+                                    <div class="text-xl font-bold ${hasVideos ? "text-green-700" : "text-gray-500"}">${row.youtubeCount}</div>
+                                </div>
+
+                                <button
+                                    onclick="setMonthDayAndBrowse('${escapeHtml(row.monthDay)}')"
+                                    class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded text-sm"
+                                >
+                                    Open Date
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+
+            resultsDiv.innerHTML = `
+                <div class="bg-indigo-800 text-white rounded px-4 py-3 mb-3">
+                    <div class="font-bold text-lg">Upcoming On This Date</div>
+                    <div class="text-sm text-indigo-200">Next ${daysToShow} calendar date(s). YouTube counts only for now.${filterText}</div>
+                </div>
+
+                <div class="space-y-3">
+                    ${cards}
+                </div>
+            `;
+        }
+
         function renderGroupedResults(items) {
             const resultsDiv = document.getElementById("results");
 
@@ -1587,9 +1344,6 @@
             const dateInput = document.getElementById("dateInput").value;
             const keywordInput = document.getElementById("keywordInput").value.trim();
             const sourceMode = getSourceMode();
-
-            showDateNavigator(dateInput, searchType);
-            loadWeekBrowser(dateInput, searchType, keywordInput, sourceMode);
 
             button.disabled = true;
             button.innerText = "Searching...";
@@ -1725,8 +1479,6 @@
             document.getElementById("sourceBoth").checked = true;
             document.getElementById("statusMessage").innerText = "";
             document.getElementById("results").innerHTML = "";
-            hideDateNavigator();
-            hideWeekBrowser();
         }
 
         document.addEventListener("DOMContentLoaded", () => {
