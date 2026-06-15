@@ -107,7 +107,8 @@
         html.dark #statusMessage,
         html.dark #statsMessage,
         html.dark #healthMessage,
-        html.dark #savedFlagsMessage {
+        html.dark #savedFlagsMessage,
+        html.dark #peopleIndexMessage {
             color: #cbd5e1 !important;
         }
     </style>
@@ -336,6 +337,13 @@
                     >
                         Saved Flags
                     </button>
+
+                    <button 
+                        onclick="loadPeopleIndexDashboard()" 
+                        class="bg-violet-700 hover:bg-violet-800 text-white px-4 py-2 rounded text-sm"
+                    >
+                        People Index
+                    </button>
                 </div>
             </div>
 
@@ -417,6 +425,24 @@
             </div>
 
             <div id="savedFlagsDashboardContent"></div>
+        </div>
+
+        <div id="peopleIndexDashboard" class="hidden bg-white shadow rounded p-4 mb-5 border border-transparent">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-lg font-bold">People Index</h2>
+                    <p id="peopleIndexMessage" class="text-sm text-gray-600">Browse podcast guests and recurring people.</p>
+                </div>
+
+                <button 
+                    onclick="hidePeopleIndexDashboard()" 
+                    class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm"
+                >
+                    Hide
+                </button>
+            </div>
+
+            <div id="peopleIndexDashboardContent"></div>
         </div>
 
         <p id="statusMessage" class="mb-4 text-gray-800 font-medium"></p>
@@ -1241,6 +1267,235 @@
             } catch (error) {
                 console.error("Flag hydrate error:", error);
             }
+        }
+
+
+
+        let peopleIndexCache = [];
+        let peopleIndexActiveSearch = "";
+        let peopleIndexActiveSort = "count";
+
+        async function loadPeopleIndexDashboard(search = "", sort = "count") {
+            const dashboard = document.getElementById("peopleIndexDashboard");
+            const message = document.getElementById("peopleIndexMessage");
+            const content = document.getElementById("peopleIndexDashboardContent");
+
+            dashboard.classList.remove("hidden");
+            peopleIndexActiveSearch = search || "";
+            peopleIndexActiveSort = sort || "count";
+            message.innerText = "Loading People Index...";
+            content.innerHTML = `
+                <div class="bg-gray-50 border rounded p-3 text-gray-700">
+                    Loading people from podcast metadata...
+                </div>
+            `;
+
+            try {
+                const params = new URLSearchParams();
+                params.append("people", "true");
+                params.append("limit", "200");
+                params.append("sort", peopleIndexActiveSort);
+                params.append("t", Date.now());
+
+                if (peopleIndexActiveSearch) {
+                    params.append("search", peopleIndexActiveSearch);
+                }
+
+                const response = await fetch(`${workerUrl}?${params.toString()}`);
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch People Index");
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                peopleIndexCache = Array.isArray(data.people) ? data.people : [];
+                renderPeopleIndexDashboard(peopleIndexCache, peopleIndexActiveSearch, peopleIndexActiveSort);
+
+                if (peopleIndexActiveSearch) {
+                    message.innerText = `${peopleIndexCache.length} people matched "${peopleIndexActiveSearch}".`;
+                } else {
+                    message.innerText = `${peopleIndexCache.length} people loaded.`;
+                }
+            } catch (error) {
+                console.error("People Index error:", error);
+                message.innerText = "Could not load People Index.";
+                content.innerHTML = `
+                    <div class="bg-white shadow rounded p-4 text-gray-700 border border-transparent">
+                        Could not load People Index. Please verify the Worker people endpoint and try again.
+                    </div>
+                `;
+            }
+        }
+
+        function hidePeopleIndexDashboard() {
+            document.getElementById("peopleIndexDashboard").classList.add("hidden");
+        }
+
+        function reloadPeopleIndexFromControls() {
+            const searchInput = document.getElementById("peopleIndexSearchInput");
+            const sortSelect = document.getElementById("peopleIndexSortSelect");
+
+            const search = searchInput ? searchInput.value.trim() : "";
+            const sort = sortSelect ? sortSelect.value : "count";
+
+            loadPeopleIndexDashboard(search, sort);
+        }
+
+        function clearPeopleIndexSearch() {
+            loadPeopleIndexDashboard("", peopleIndexActiveSort || "count");
+        }
+
+        function renderPeopleIndexDashboard(people, search, sort) {
+            const content = document.getElementById("peopleIndexDashboardContent");
+            const cards = people.length
+                ? people.map(renderPeopleCard).join("")
+                : `
+                    <div class="bg-gray-50 border rounded p-4 text-gray-700">
+                        No people matched this search.
+                    </div>
+                `;
+
+            content.innerHTML = `
+                <div class="bg-gray-50 border rounded p-4 mb-4">
+                    <div class="flex flex-wrap items-end gap-3">
+                        <label class="block">
+                            <span class="font-semibold">Search people:</span>
+                            <input
+                                type="text"
+                                id="peopleIndexSearchInput"
+                                class="border p-2 ml-2 rounded w-72"
+                                placeholder="Reggie, Barkley, Tirico..."
+                                value="${escapeHtml(search || "")}"
+                                onkeydown="if (event.key === 'Enter') reloadPeopleIndexFromControls();"
+                            >
+                        </label>
+
+                        <label class="block">
+                            <span class="font-semibold">Sort:</span>
+                            <select id="peopleIndexSortSelect" class="border p-2 ml-2 rounded">
+                                <option value="count" ${sort === "count" ? "selected" : ""}>Most appearances</option>
+                                <option value="name" ${sort === "name" ? "selected" : ""}>Name A-Z</option>
+                            </select>
+                        </label>
+
+                        <button
+                            onclick="reloadPeopleIndexFromControls()"
+                            class="bg-violet-700 hover:bg-violet-800 text-white px-4 py-2 rounded"
+                        >
+                            Search People
+                        </button>
+
+                        <button
+                            onclick="clearPeopleIndexSearch()"
+                            class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+                        >
+                            Clear People Search
+                        </button>
+                    </div>
+
+                    <p class="text-sm text-gray-600 mt-3">
+                        Tip: click “Search Podcasts” on any person to reuse the normal podcast result cards.
+                    </p>
+                </div>
+
+                <div class="space-y-3">
+                    ${cards}
+                </div>
+            `;
+        }
+
+        function renderPeopleCard(person) {
+            const personName = person.person_name || "Unknown person";
+            const episodeCount = formatNumber(person.podcast_episode_count);
+            const firstDate = person.first_episode_date ? formatDateOnly(person.first_episode_date) : "—";
+            const latestDate = person.latest_episode_date ? formatDateOnly(person.latest_episode_date) : "—";
+            const years = Array.isArray(person.years_found) ? person.years_found : [];
+            const monthDays = Array.isArray(person.month_days_found) ? person.month_days_found : [];
+            const yearsText = years.length ? years.join(", ") : "—";
+            const monthDaysText = monthDays.length === 1
+                ? "1 calendar day"
+                : `${formatNumber(monthDays.length)} calendar days`;
+            const latestPublished = person.latest_published_at ? formatDateTime(person.latest_published_at) : "";
+
+            return `
+                <div class="bg-white shadow rounded p-4 border border-transparent">
+                    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-gray-900 mb-2">${escapeHtml(personName)}</h3>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 text-sm text-gray-700 mb-3">
+                                <div><span class="font-semibold">Podcast episodes:</span> ${escapeHtml(episodeCount)}</div>
+                                <div><span class="font-semibold">First:</span> ${escapeHtml(firstDate)}</div>
+                                <div><span class="font-semibold">Latest:</span> ${escapeHtml(latestDate)}</div>
+                                <div><span class="font-semibold">MM-DD spread:</span> ${escapeHtml(monthDaysText)}</div>
+                            </div>
+
+                            <div class="text-sm text-gray-700">
+                                <span class="font-semibold">Years found:</span> ${escapeHtml(yearsText)}
+                            </div>
+
+                            ${
+                                latestPublished
+                                    ? `<div class="text-xs text-gray-600 mt-1">Latest published timestamp: ${escapeHtml(latestPublished)}</div>`
+                                    : ""
+                            }
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <button
+                                onclick="searchPersonPodcastsFromButton(this)"
+                                data-person-name="${escapeHtml(personName)}"
+                                class="bg-purple-700 hover:bg-purple-800 text-white px-3 py-2 rounded text-sm"
+                            >
+                                Search Podcasts
+                            </button>
+
+                            <button
+                                onclick="searchPersonAllSourcesFromButton(this)"
+                                data-person-name="${escapeHtml(personName)}"
+                                class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 rounded text-sm"
+                            >
+                                Search All Sources
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function searchPersonPodcastsFromButton(button) {
+            const personName = button.getAttribute("data-person-name") || "";
+            await searchPersonPodcasts(personName);
+        }
+
+        async function searchPersonAllSourcesFromButton(button) {
+            const personName = button.getAttribute("data-person-name") || "";
+            await searchPersonAllSources(personName);
+        }
+
+        async function searchPersonPodcasts(personName) {
+            document.getElementById("dateInput").value = "";
+            document.getElementById("monthDayInput").value = "";
+            document.getElementById("keywordInput").value = personName;
+            document.getElementById("sourcePodcasts").checked = true;
+            document.getElementById("fullInterviewOnly").checked = false;
+            document.getElementById("excludeOpens").checked = false;
+            await searchMedia();
+        }
+
+        async function searchPersonAllSources(personName) {
+            document.getElementById("dateInput").value = "";
+            document.getElementById("monthDayInput").value = "";
+            document.getElementById("keywordInput").value = personName;
+            document.getElementById("sourceBoth").checked = true;
+            document.getElementById("fullInterviewOnly").checked = false;
+            document.getElementById("excludeOpens").checked = false;
+            await searchMedia();
         }
 
 
