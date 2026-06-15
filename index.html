@@ -836,24 +836,19 @@
             await browseMonthDay();
         }
 
-        async function fetchYoutubeByMonthDay(monthDay) {
+        async function fetchOnThisDateSummary(monthDays) {
             const params = new URLSearchParams();
-            params.append("month_day", monthDay);
+            params.append("on_this_date_summary", "true");
+            params.append("month_days", monthDays.join(","));
             params.append("t", Date.now());
 
             const response = await fetch(`${workerUrl}?${params.toString()}`);
 
             if (!response.ok) {
-                throw new Error(`Failed to fetch YouTube count for ${monthDay}`);
+                throw new Error("Failed to fetch on-this-date summary");
             }
 
-            const data = await response.json();
-
-            if (!data || data.length === 0 || data[0].title === "No results found") {
-                return [];
-            }
-
-            return data.filter(resultMatchesFilters);
+            return await response.json();
         }
 
         async function showUpcomingOnThisDay(daysToShow = 14) {
@@ -869,30 +864,33 @@
             `;
 
             try {
-                const results = [];
+                const monthDays = rows.map(row => row.monthDay);
+                const summaryRows = await fetchOnThisDateSummary(monthDays);
+                const summaryByMonthDay = new Map();
 
-                for (const row of rows) {
-                    const items = await fetchYoutubeByMonthDay(row.monthDay);
+                summaryRows.forEach(summary => {
+                    summaryByMonthDay.set(summary.month_day, summary);
+                });
 
-                    const years = [...new Set(
-                        items
-                            .map(item => item.date ? String(item.date).slice(0, 4) : "")
-                            .filter(Boolean)
-                    )].sort((a, b) => b.localeCompare(a));
+                const results = rows.map(row => {
+                    const summary = summaryByMonthDay.get(row.monthDay) || {};
 
-                    results.push({
+                    return {
                         ...row,
-                        youtubeCount: items.length,
-                        yearCount: years.length,
-                        years: years.slice(0, 8)
-                    });
-                }
+                        youtubeCount: Number(summary.youtube_count || 0),
+                        podcastCount: Number(summary.podcast_count || 0),
+                        years: Array.isArray(summary.years_found) ? summary.years_found : [],
+                        people: Array.isArray(summary.people_found) ? summary.people_found : []
+                    };
+                });
 
                 renderUpcomingOnThisDay(results, daysToShow);
 
                 const totalVideos = results.reduce((sum, row) => sum + row.youtubeCount, 0);
-                const datesWithVideos = results.filter(row => row.youtubeCount > 0).length;
-                statusMessage.innerText = `Upcoming on-this-date view: ${datesWithVideos} of ${daysToShow} date(s) have YouTube results, ${totalVideos} total video(s).`;
+                const totalPodcasts = results.reduce((sum, row) => sum + row.podcastCount, 0);
+                const datesWithAnything = results.filter(row => row.youtubeCount > 0 || row.podcastCount > 0).length;
+
+                statusMessage.innerText = `Upcoming on-this-date view: ${datesWithAnything} of ${daysToShow} date(s) have archive results, ${totalVideos} YouTube video(s), and ${totalPodcasts} podcast episode(s).`;
             } catch (error) {
                 console.error("Upcoming dates error:", error);
                 statusMessage.innerText = "Could not load upcoming dates.";
@@ -1237,27 +1235,40 @@
 
         function renderUpcomingOnThisDay(rows, daysToShow) {
             const resultsDiv = document.getElementById("results");
-            const filterText = describeActiveFilters();
 
             const cards = rows.map(row => {
                 const hasVideos = row.youtubeCount > 0;
-                const yearText = row.years.length
-                    ? `Years: ${row.years.join(", ")}${row.yearCount > row.years.length ? "..." : ""}`
+                const hasPodcasts = row.podcastCount > 0;
+                const yearsToShow = row.years.slice(0, 10);
+                const peopleToShow = row.people.slice(0, 8);
+
+                const yearText = yearsToShow.length
+                    ? `Years: ${yearsToShow.join(", ")}${row.years.length > yearsToShow.length ? "..." : ""}`
                     : "No years found yet";
+
+                const peopleText = peopleToShow.length
+                    ? `People: ${peopleToShow.join(", ")}${row.people.length > peopleToShow.length ? "..." : ""}`
+                    : "People: none found yet";
 
                 return `
                     <div class="bg-white shadow rounded p-4 border border-transparent">
-                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                            <div>
+                        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                            <div class="flex-1">
                                 <div class="text-sm text-gray-600 font-semibold">${escapeHtml(row.fullLabel)}</div>
                                 <div class="text-2xl font-bold text-gray-900">${escapeHtml(row.monthDay)}</div>
-                                <div class="text-sm text-gray-600 mt-1">${escapeHtml(yearText)}</div>
+                                <div class="text-sm text-gray-600 mt-2">${escapeHtml(yearText)}</div>
+                                <div class="text-sm text-gray-700 mt-1">${escapeHtml(peopleText)}</div>
                             </div>
 
                             <div class="flex flex-wrap items-center gap-3">
                                 <div class="rounded bg-gray-100 px-3 py-2 text-center min-w-24">
                                     <div class="text-xs uppercase tracking-wide text-gray-600">YouTube</div>
                                     <div class="text-xl font-bold ${hasVideos ? "text-green-700" : "text-gray-500"}">${row.youtubeCount}</div>
+                                </div>
+
+                                <div class="rounded bg-gray-100 px-3 py-2 text-center min-w-24">
+                                    <div class="text-xs uppercase tracking-wide text-gray-600">Podcasts</div>
+                                    <div class="text-xl font-bold ${hasPodcasts ? "text-purple-700" : "text-gray-500"}">${row.podcastCount}</div>
                                 </div>
 
                                 <button
@@ -1275,7 +1286,7 @@
             resultsDiv.innerHTML = `
                 <div class="bg-indigo-800 text-white rounded px-4 py-3 mb-3">
                     <div class="font-bold text-lg">Upcoming On This Date</div>
-                    <div class="text-sm text-indigo-200">Next ${daysToShow} calendar date(s). YouTube counts only for now.${filterText}</div>
+                    <div class="text-sm text-indigo-200">Next ${daysToShow} calendar date(s). Includes YouTube counts, podcast counts, years found, and people found.</div>
                 </div>
 
                 <div class="space-y-3">
