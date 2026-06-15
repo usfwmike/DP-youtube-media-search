@@ -108,7 +108,8 @@
         html.dark #statsMessage,
         html.dark #healthMessage,
         html.dark #savedFlagsMessage,
-        html.dark #peopleIndexMessage {
+        html.dark #peopleIndexMessage,
+        html.dark #gapReportMessage {
             color: #cbd5e1 !important;
         }
     </style>
@@ -344,6 +345,13 @@
                     >
                         People Index
                     </button>
+
+                    <button 
+                        onclick="loadGapReportDashboard()" 
+                        class="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 rounded text-sm"
+                    >
+                        Gap Report
+                    </button>
                 </div>
             </div>
 
@@ -443,6 +451,24 @@
             </div>
 
             <div id="peopleIndexDashboardContent"></div>
+        </div>
+
+        <div id="gapReportDashboard" class="hidden bg-white shadow rounded p-4 mb-5 border border-transparent">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-lg font-bold">Gap Report</h2>
+                    <p id="gapReportMessage" class="text-sm text-gray-600">Find dates where YouTube or podcast coverage looks missing or thin.</p>
+                </div>
+
+                <button 
+                    onclick="hideGapReportDashboard()" 
+                    class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm"
+                >
+                    Hide
+                </button>
+            </div>
+
+            <div id="gapReportDashboardContent"></div>
         </div>
 
         <p id="statusMessage" class="mb-4 text-gray-800 font-medium"></p>
@@ -1500,6 +1526,270 @@
             document.getElementById("dateInput").value = "";
             document.getElementById("monthDayInput").value = "";
             document.getElementById("keywordInput").value = personName;
+            document.getElementById("sourceBoth").checked = true;
+            document.getElementById("fullInterviewOnly").checked = false;
+            document.getElementById("excludeOpens").checked = false;
+            await searchMedia();
+        }
+
+        let gapReportCache = [];
+        let gapReportActiveType = "all";
+        let gapReportActiveLimit = 100;
+
+        const gapTypeLabels = {
+            all: "All gaps",
+            podcast_only: "Podcast only",
+            youtube_only: "YouTube only",
+            low_youtube: "Low YouTube",
+            low_podcast: "Low podcast",
+            has_both: "Has both"
+        };
+
+        async function loadGapReportDashboard(gapType = "all", limit = 100) {
+            const dashboard = document.getElementById("gapReportDashboard");
+            const message = document.getElementById("gapReportMessage");
+            const content = document.getElementById("gapReportDashboardContent");
+
+            dashboard.classList.remove("hidden");
+            gapReportActiveType = gapType || "all";
+            gapReportActiveLimit = Number(limit || 100);
+            message.innerText = "Loading Gap Report...";
+            content.innerHTML = `
+                <div class="bg-gray-50 border rounded p-3 text-gray-700">
+                    Loading archive gap data...
+                </div>
+            `;
+
+            try {
+                const params = new URLSearchParams();
+                params.append("gap_report", "true");
+                params.append("gap_type", gapReportActiveType);
+                params.append("limit", String(gapReportActiveLimit));
+                params.append("t", Date.now());
+
+                const response = await fetch(`${workerUrl}?${params.toString()}`);
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch Gap Report");
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                gapReportCache = Array.isArray(data.gaps) ? data.gaps : [];
+                renderGapReportDashboard(gapReportCache, gapReportActiveType, gapReportActiveLimit);
+
+                message.innerText = `${gapReportCache.length} gap date(s) loaded for ${gapTypeLabels[gapReportActiveType] || gapReportActiveType}.`;
+            } catch (error) {
+                console.error("Gap Report error:", error);
+                message.innerText = "Could not load Gap Report.";
+                content.innerHTML = `
+                    <div class="bg-white shadow rounded p-4 text-gray-700 border border-transparent">
+                        Could not load Gap Report. Please verify the Worker gap_report endpoint and try again.
+                    </div>
+                `;
+            }
+        }
+
+        function hideGapReportDashboard() {
+            document.getElementById("gapReportDashboard").classList.add("hidden");
+        }
+
+        function reloadGapReportFromControls() {
+            const typeSelect = document.getElementById("gapReportTypeSelect");
+            const limitSelect = document.getElementById("gapReportLimitSelect");
+
+            const gapType = typeSelect ? typeSelect.value : "all";
+            const limit = limitSelect ? Number(limitSelect.value) : 100;
+
+            loadGapReportDashboard(gapType, limit);
+        }
+
+        function showGapReportType(gapType) {
+            loadGapReportDashboard(gapType, gapReportActiveLimit || 100);
+        }
+
+        function getGapTypeLabel(gapType) {
+            return gapTypeLabels[gapType] || gapType || "Gap";
+        }
+
+        function getGapTypeClass(gapType) {
+            if (gapType === "podcast_only") return "bg-purple-100 text-purple-900";
+            if (gapType === "youtube_only") return "bg-red-100 text-red-900";
+            if (gapType === "low_youtube") return "bg-amber-100 text-amber-900";
+            if (gapType === "low_podcast") return "bg-blue-100 text-blue-900";
+            return "bg-gray-200 text-gray-800";
+        }
+
+        function renderGapReportDashboard(gaps, gapType, limit) {
+            const content = document.getElementById("gapReportDashboardContent");
+            const cards = gaps.length
+                ? gaps.map(renderGapReportCard).join("")
+                : `
+                    <div class="bg-gray-50 border rounded p-4 text-gray-700">
+                        No gap dates matched this filter.
+                    </div>
+                `;
+
+            const quickFilters = [
+                ["all", "All gaps"],
+                ["podcast_only", "Podcast only"],
+                ["youtube_only", "YouTube only"],
+                ["low_youtube", "Low YouTube"],
+                ["low_podcast", "Low podcast"]
+            ].map(([type, label]) => {
+                const activeClass = type === gapType
+                    ? "bg-emerald-700 text-white"
+                    : "bg-gray-200 hover:bg-gray-300 text-gray-800";
+
+                return `
+                    <button
+                        onclick="showGapReportType('${escapeHtml(type)}')"
+                        class="${activeClass} px-3 py-1 rounded text-sm"
+                    >
+                        ${escapeHtml(label)}
+                    </button>
+                `;
+            }).join("");
+
+            content.innerHTML = `
+                <div class="bg-gray-50 border rounded p-4 mb-4">
+                    <div class="flex flex-wrap items-end gap-3 mb-3">
+                        <label class="block">
+                            <span class="font-semibold">Gap type:</span>
+                            <select id="gapReportTypeSelect" class="border p-2 ml-2 rounded">
+                                <option value="all" ${gapType === "all" ? "selected" : ""}>All gaps</option>
+                                <option value="podcast_only" ${gapType === "podcast_only" ? "selected" : ""}>Podcast only</option>
+                                <option value="youtube_only" ${gapType === "youtube_only" ? "selected" : ""}>YouTube only</option>
+                                <option value="low_youtube" ${gapType === "low_youtube" ? "selected" : ""}>Low YouTube</option>
+                                <option value="low_podcast" ${gapType === "low_podcast" ? "selected" : ""}>Low podcast</option>
+                            </select>
+                        </label>
+
+                        <label class="block">
+                            <span class="font-semibold">Limit:</span>
+                            <select id="gapReportLimitSelect" class="border p-2 ml-2 rounded">
+                                <option value="25" ${Number(limit) === 25 ? "selected" : ""}>25</option>
+                                <option value="50" ${Number(limit) === 50 ? "selected" : ""}>50</option>
+                                <option value="100" ${Number(limit) === 100 ? "selected" : ""}>100</option>
+                                <option value="200" ${Number(limit) === 200 ? "selected" : ""}>200</option>
+                            </select>
+                        </label>
+
+                        <button
+                            onclick="reloadGapReportFromControls()"
+                            class="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 rounded"
+                        >
+                            Load Gaps
+                        </button>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        ${quickFilters}
+                    </div>
+
+                    <p class="text-sm text-gray-600">
+                        Gap Report shows dates where one source exists without the other, or where one side looks unusually thin. “Open MM-DD” browses that calendar day across all years. “Search exact date” checks the specific date.
+                    </p>
+                </div>
+
+                <div class="space-y-3">
+                    ${cards}
+                </div>
+            `;
+        }
+
+        function renderGapReportCard(gap) {
+            const dateText = gap.date ? formatDateOnly(gap.date) : "No date";
+            const monthDay = gap.month_day || "";
+            const gapType = gap.gap_type || "gap";
+            const gapLabel = getGapTypeLabel(gapType);
+            const youtubeCount = formatNumber(gap.youtube_count);
+            const podcastCount = formatNumber(gap.podcast_count);
+            const latestYoutube = gap.latest_youtube_created_at ? formatDateTime(gap.latest_youtube_created_at) : "None";
+            const latestPodcast = gap.latest_podcast_created_at ? formatDateTime(gap.latest_podcast_created_at) : "None";
+
+            return `
+                <div class="bg-white shadow rounded p-4 border border-transparent">
+                    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                        <div class="flex-1">
+                            <div class="flex flex-wrap items-center gap-2 mb-2">
+                                <span class="text-xs font-semibold uppercase tracking-wide px-2 py-1 rounded ${getGapTypeClass(gapType)}">
+                                    ${escapeHtml(gapLabel)}
+                                </span>
+                                <span class="text-xs text-gray-600 uppercase tracking-wide">Gap score ${escapeHtml(formatNumber(gap.gap_score))}</span>
+                            </div>
+
+                            <h3 class="text-lg font-bold text-gray-900 mb-2">${escapeHtml(dateText)}</h3>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 text-sm text-gray-700 mb-3">
+                                <div><span class="font-semibold">MM-DD:</span> ${escapeHtml(monthDay || "—")}</div>
+                                <div><span class="font-semibold">YouTube:</span> ${escapeHtml(youtubeCount)}</div>
+                                <div><span class="font-semibold">Podcasts:</span> ${escapeHtml(podcastCount)}</div>
+                                <div><span class="font-semibold">Type:</span> ${escapeHtml(gapLabel)}</div>
+                            </div>
+
+                            <div class="text-xs text-gray-600 space-y-1">
+                                <div><span class="font-semibold">Latest YouTube row:</span> ${escapeHtml(latestYoutube)}</div>
+                                <div><span class="font-semibold">Latest podcast row:</span> ${escapeHtml(latestPodcast)}</div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            ${monthDay ? `
+                                <button
+                                    onclick="openGapMonthDayFromButton(this)"
+                                    data-month-day="${escapeHtml(monthDay)}"
+                                    class="bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded text-sm"
+                                >
+                                    Open MM-DD
+                                </button>
+                            ` : ""}
+
+                            ${gap.date ? `
+                                <button
+                                    onclick="searchGapExactDateFromButton(this)"
+                                    data-date="${escapeHtml(gap.date)}"
+                                    class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-2 rounded text-sm"
+                                >
+                                    Search Exact Date
+                                </button>
+                            ` : ""}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function openGapMonthDayFromButton(button) {
+            const monthDay = button.getAttribute("data-month-day") || "";
+
+            if (!monthDay) {
+                return;
+            }
+
+            document.getElementById("dateInput").value = "";
+            document.getElementById("keywordInput").value = "";
+            document.getElementById("sourceBoth").checked = true;
+            document.getElementById("fullInterviewOnly").checked = false;
+            document.getElementById("excludeOpens").checked = false;
+            document.getElementById("monthDayInput").value = monthDay;
+            await browseMonthDay();
+        }
+
+        async function searchGapExactDateFromButton(button) {
+            const date = button.getAttribute("data-date") || "";
+
+            if (!date) {
+                return;
+            }
+
+            document.getElementById("dateInput").value = date;
+            document.getElementById("monthDayInput").value = "";
+            document.getElementById("keywordInput").value = "";
             document.getElementById("sourceBoth").checked = true;
             document.getElementById("fullInterviewOnly").checked = false;
             document.getElementById("excludeOpens").checked = false;
