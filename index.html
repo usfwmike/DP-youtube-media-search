@@ -1412,6 +1412,8 @@
         function renderPeopleCard(person) {
             const personName = person.person_name || "Unknown person";
             const episodeCount = formatNumber(person.podcast_episode_count);
+            const structuredCount = formatNumber(person.structured_episode_count);
+            const titleMatchCount = formatNumber(person.title_description_episode_count);
             const firstDate = person.first_episode_date ? formatDateOnly(person.first_episode_date) : "—";
             const latestDate = person.latest_episode_date ? formatDateOnly(person.latest_episode_date) : "—";
             const years = Array.isArray(person.years_found) ? person.years_found : [];
@@ -1429,14 +1431,20 @@
                             <h3 class="text-xl font-bold text-gray-900 mb-2">${escapeHtml(personName)}</h3>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 text-sm text-gray-700 mb-3">
-                                <div><span class="font-semibold">Podcast episodes:</span> ${escapeHtml(episodeCount)}</div>
+                                <div><span class="font-semibold">Podcast matches:</span> ${escapeHtml(episodeCount)}</div>
+                                <div><span class="font-semibold">Structured metadata:</span> ${escapeHtml(structuredCount)}</div>
+                                <div><span class="font-semibold">Title matches included:</span> ${escapeHtml(titleMatchCount)}</div>
+                                <div><span class="font-semibold">MM-DD spread:</span> ${escapeHtml(monthDaysText)}</div>
                                 <div><span class="font-semibold">First:</span> ${escapeHtml(firstDate)}</div>
                                 <div><span class="font-semibold">Latest:</span> ${escapeHtml(latestDate)}</div>
-                                <div><span class="font-semibold">MM-DD spread:</span> ${escapeHtml(monthDaysText)}</div>
                             </div>
 
                             <div class="text-sm text-gray-700">
                                 <span class="font-semibold">Years found:</span> ${escapeHtml(yearsText)}
+                            </div>
+
+                            <div class="text-xs text-gray-600 mt-1">
+                                Podcast matches combine structured guest/appearance metadata with known-person matches found in podcast episode titles.
                             </div>
 
                             ${
