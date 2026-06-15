@@ -105,7 +105,8 @@
         }
 
         html.dark #statusMessage,
-        html.dark #statsMessage {
+        html.dark #statsMessage,
+        html.dark #healthMessage {
             color: #cbd5e1 !important;
         }
     </style>
@@ -306,12 +307,21 @@
                     <p id="statsMessage" class="text-sm text-gray-600">Loading stats...</p>
                 </div>
 
-                <button 
-                    onclick="loadStats()" 
-                    class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded text-sm"
-                >
-                    Refresh Stats
-                </button>
+                <div class="flex flex-wrap gap-2">
+                    <button 
+                        onclick="loadStats()" 
+                        class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded text-sm"
+                    >
+                        Refresh Stats
+                    </button>
+
+                    <button 
+                        onclick="loadHealthDashboard()" 
+                        class="bg-rose-700 hover:bg-rose-800 text-white px-4 py-2 rounded text-sm"
+                    >
+                        Health Dashboard
+                    </button>
+                </div>
             </div>
 
             <div class="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -356,6 +366,24 @@
                 <span class="font-semibold">Last update:</span>
                 <span id="lastAddedStat">—</span>
             </div>
+        </div>
+
+        <div id="healthDashboard" class="hidden bg-white shadow rounded p-4 mb-5 border border-transparent">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-lg font-bold">Data Health Dashboard</h2>
+                    <p id="healthMessage" class="text-sm text-gray-600">Private archive health view.</p>
+                </div>
+
+                <button 
+                    onclick="hideHealthDashboard()" 
+                    class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm"
+                >
+                    Hide
+                </button>
+            </div>
+
+            <div id="healthDashboardContent"></div>
         </div>
 
         <p id="statusMessage" class="mb-4 text-gray-800 font-medium"></p>
@@ -545,6 +573,151 @@
                 console.error("Stats error:", error);
                 statsMessage.innerText = "Could not load stats.";
             }
+        }
+
+        async function loadHealthDashboard() {
+            const healthDashboard = document.getElementById("healthDashboard");
+            const healthMessage = document.getElementById("healthMessage");
+            const content = document.getElementById("healthDashboardContent");
+
+            healthDashboard.classList.remove("hidden");
+            healthMessage.innerText = "Loading health dashboard...";
+            content.innerHTML = `
+                <div class="bg-gray-50 border rounded p-3 text-gray-700">
+                    Loading archive health data...
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`${workerUrl}?health=true&t=${Date.now()}`);
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch health dashboard");
+                }
+
+                const health = await response.json();
+                renderHealthDashboard(health);
+
+                healthMessage.innerText = health.generated_at
+                    ? `Health data generated ${formatDateTime(health.generated_at)}.`
+                    : "Health data loaded.";
+            } catch (error) {
+                console.error("Health dashboard error:", error);
+                healthMessage.innerText = "Could not load health dashboard.";
+                content.innerHTML = `
+                    <div class="bg-white shadow rounded p-4 text-gray-700 border border-transparent">
+                        Could not load health dashboard data. Please try again.
+                    </div>
+                `;
+            }
+        }
+
+        function hideHealthDashboard() {
+            document.getElementById("healthDashboard").classList.add("hidden");
+        }
+
+        function formatHealthDateTime(value) {
+            return value ? formatDateTime(value) : "None";
+        }
+
+        function formatHealthDate(value) {
+            return value ? formatDateOnly(value) : "—";
+        }
+
+        function formatHealthError(health) {
+            if (!health.latest_error_message) {
+                return "No recorded YouTube errors";
+            }
+
+            const parts = [];
+
+            if (health.latest_error_source_channel_name) {
+                parts.push(health.latest_error_source_channel_name);
+            }
+
+            if (health.latest_error_target_date) {
+                parts.push(formatDateOnly(health.latest_error_target_date));
+            }
+
+            if (health.latest_error_status) {
+                parts.push(health.latest_error_status);
+            }
+
+            const prefix = parts.length ? `${parts.join(" · ")} — ` : "";
+            return `${prefix}${health.latest_error_message}`;
+        }
+
+        function renderHealthMetricCard(label, value, helperText = "") {
+            return `
+                <div class="bg-gray-50 border rounded p-3">
+                    <div class="text-xs text-gray-600 uppercase tracking-wide">${escapeHtml(label)}</div>
+                    <div class="text-xl font-bold text-gray-900">${escapeHtml(value)}</div>
+                    ${
+                        helperText
+                            ? `<div class="text-xs text-gray-600 mt-1">${escapeHtml(helperText)}</div>`
+                            : ""
+                    }
+                </div>
+            `;
+        }
+
+        function renderHealthDashboard(health) {
+            const content = document.getElementById("healthDashboardContent");
+            const latestErrorText = formatHealthError(health);
+
+            content.innerHTML = `
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+                    ${renderHealthMetricCard("YouTube Videos", formatNumber(health.youtube_video_count))}
+                    ${renderHealthMetricCard("Podcast Episodes", formatNumber(health.podcast_episode_count))}
+                    ${renderHealthMetricCard("YouTube Show Dates", formatNumber(health.youtube_show_dates))}
+                    ${renderHealthMetricCard("Podcast Show Dates", formatNumber(health.podcast_show_dates))}
+                    ${renderHealthMetricCard("YouTube Rows Last 24h", formatNumber(health.youtube_tracker_rows_last_24h))}
+                    ${renderHealthMetricCard("Success Rows Last 24h", formatNumber(health.youtube_success_rows_last_24h))}
+                    ${renderHealthMetricCard("No-Video Rows Last 24h", formatNumber(health.youtube_no_video_rows_last_24h))}
+                    ${renderHealthMetricCard("Videos Saved Last 24h", formatNumber(health.youtube_videos_saved_last_24h))}
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                    <div class="bg-gray-50 border rounded p-4">
+                        <h3 class="font-bold text-gray-900 mb-3">Latest Activity</h3>
+
+                        <div class="space-y-2 text-sm text-gray-700">
+                            <div><span class="font-semibold">Latest YouTube tracker activity:</span> ${escapeHtml(formatHealthDateTime(health.latest_youtube_tracker_activity))}</div>
+                            <div><span class="font-semibold">Latest YouTube success:</span> ${escapeHtml(formatHealthDateTime(health.latest_youtube_success))}</div>
+                            <div><span class="font-semibold">Latest no-video result:</span> ${escapeHtml(formatHealthDateTime(health.latest_youtube_no_videos_found))}</div>
+                            <div><span class="font-semibold">Latest YouTube row added:</span> ${escapeHtml(formatHealthDateTime(health.latest_youtube_created_at))}</div>
+                            <div><span class="font-semibold">Latest podcast row added:</span> ${escapeHtml(formatHealthDateTime(health.latest_podcast_created_at))}</div>
+                            <div><span class="font-semibold">Latest podcast captured:</span> ${escapeHtml(formatHealthDateTime(health.latest_podcast_captured_at))}</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 border rounded p-4">
+                        <h3 class="font-bold text-gray-900 mb-3">Coverage</h3>
+
+                        <div class="space-y-2 text-sm text-gray-700">
+                            <div><span class="font-semibold">YouTube date range:</span> ${escapeHtml(formatHealthDate(health.oldest_youtube_date))} through ${escapeHtml(formatHealthDate(health.newest_youtube_date))}</div>
+                            <div><span class="font-semibold">Podcast date range:</span> ${escapeHtml(formatHealthDate(health.oldest_podcast_date))} through ${escapeHtml(formatHealthDate(health.newest_podcast_date))}</div>
+                            <div><span class="font-semibold">Dates with both YouTube + podcasts:</span> ${escapeHtml(formatNumber(health.dates_with_both_youtube_and_podcast))}</div>
+                            <div><span class="font-semibold">Dates with YouTube only:</span> ${escapeHtml(formatNumber(health.dates_with_youtube_only))}</div>
+                            <div><span class="font-semibold">Dates with podcasts only:</span> ${escapeHtml(formatNumber(health.dates_with_podcast_only))}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 border rounded p-4">
+                    <h3 class="font-bold text-gray-900 mb-3">Last Recorded YouTube Error</h3>
+
+                    <div class="${health.latest_error_message ? "text-red-700" : "text-green-700"} text-sm font-semibold">
+                        ${escapeHtml(latestErrorText)}
+                    </div>
+
+                    ${
+                        health.latest_youtube_error_at
+                            ? `<div class="text-xs text-gray-600 mt-2">Error time: ${escapeHtml(formatHealthDateTime(health.latest_youtube_error_at))}</div>`
+                            : ""
+                    }
+                </div>
+            `;
         }
 
         function getTodayMonthDay() {
