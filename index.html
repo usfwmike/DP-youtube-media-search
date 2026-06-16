@@ -473,6 +473,39 @@
 
         <p id="statusMessage" class="mb-4 text-gray-800 font-medium"></p>
 
+        <div id="dateBrowseNav" class="hidden bg-white shadow rounded p-4 mb-4 border border-transparent">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                    <div class="text-xs text-gray-600 uppercase tracking-wide">Date Browser</div>
+                    <div id="dateBrowseLabel" class="text-lg font-bold text-gray-900">—</div>
+                    <div id="dateBrowseHelper" class="text-sm text-gray-600">Use Previous and Next to move one calendar day at a time.</div>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    <button
+                        onclick="browsePreviousDate()"
+                        class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded text-sm"
+                    >
+                        ← Prev
+                    </button>
+
+                    <button
+                        onclick="browseTodayExactDate()"
+                        class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm"
+                    >
+                        Today
+                    </button>
+
+                    <button
+                        onclick="browseNextDate()"
+                        class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded text-sm"
+                    >
+                        Next →
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div id="results" class="space-y-4"></div>
     </div>
 
@@ -482,6 +515,123 @@
         function getSourceMode() {
             const selected = document.querySelector('input[name="sourceMode"]:checked');
             return selected ? selected.value : "both";
+        }
+
+        function getLocalDateParts(dateValue) {
+            if (!dateValue || !/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+                return null;
+            }
+
+            const [year, month, day] = dateValue.split("-").map(Number);
+            return { year, month, day };
+        }
+
+        function getLocalDateFromInputValue(dateValue) {
+            const parts = getLocalDateParts(dateValue);
+
+            if (!parts) {
+                return null;
+            }
+
+            const date = new Date(parts.year, parts.month - 1, parts.day);
+            date.setHours(12, 0, 0, 0);
+            return date;
+        }
+
+        function formatDateInputValue(date) {
+            if (!(date instanceof Date) || isNaN(date.getTime())) {
+                return "";
+            }
+
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+
+            return `${year}-${month}-${day}`;
+        }
+
+        function addDaysToDateInputValue(dateValue, daysToAdd) {
+            const date = getLocalDateFromInputValue(dateValue);
+
+            if (!date) {
+                return "";
+            }
+
+            date.setDate(date.getDate() + daysToAdd);
+            return formatDateInputValue(date);
+        }
+
+        function getTodayDateInputValue() {
+            const today = new Date();
+            today.setHours(12, 0, 0, 0);
+            return formatDateInputValue(today);
+        }
+
+        function formatDateBrowserLabel(dateValue) {
+            const date = getLocalDateFromInputValue(dateValue);
+
+            if (!date) {
+                return dateValue || "—";
+            }
+
+            return date.toLocaleDateString(undefined, {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric"
+            });
+        }
+
+        function showDateBrowseNav(dateValue) {
+            const nav = document.getElementById("dateBrowseNav");
+            const label = document.getElementById("dateBrowseLabel");
+            const helper = document.getElementById("dateBrowseHelper");
+
+            if (!nav || !label || !dateValue) {
+                return;
+            }
+
+            nav.classList.remove("hidden");
+            label.innerText = formatDateBrowserLabel(dateValue);
+
+            if (helper) {
+                helper.innerText = "Use Previous and Next to move one calendar day at a time. Your current source setting is preserved.";
+            }
+        }
+
+        function hideDateBrowseNav() {
+            const nav = document.getElementById("dateBrowseNav");
+
+            if (nav) {
+                nav.classList.add("hidden");
+            }
+        }
+
+        async function browseExactDate(dateValue) {
+            if (!dateValue) {
+                return;
+            }
+
+            document.getElementById("dateInput").value = dateValue;
+            document.getElementById("monthDayInput").value = "";
+            showDateBrowseNav(dateValue);
+            await searchMedia();
+        }
+
+        async function browsePreviousDate() {
+            const currentDate = document.getElementById("dateInput").value || getTodayDateInputValue();
+            const previousDate = addDaysToDateInputValue(currentDate, -1);
+            await browseExactDate(previousDate);
+        }
+
+        async function browseNextDate() {
+            const currentDate = document.getElementById("dateInput").value || getTodayDateInputValue();
+            const nextDate = addDaysToDateInputValue(currentDate, 1);
+            await browseExactDate(nextDate);
+        }
+
+        async function browseTodayExactDate() {
+            await browseExactDate(getTodayDateInputValue());
         }
 
         function toggleTheme() {
@@ -2146,6 +2296,7 @@
         }
 
         async function browseMonthDay() {
+            hideDateBrowseNav();
             const rawMonthDay = document.getElementById("monthDayInput").value;
             const monthDay = normalizeMonthDay(rawMonthDay);
             const keywordInput = document.getElementById("keywordInput").value.trim();
@@ -2190,6 +2341,7 @@
         }
 
         async function showUpcomingOnThisDay(daysToShow = 14) {
+            hideDateBrowseNav();
             const statusMessage = document.getElementById("statusMessage");
             const resultsDiv = document.getElementById("results");
             const rows = getUpcomingDateRows(daysToShow);
@@ -2241,6 +2393,7 @@
         }
 
         async function showOnThisDay() {
+            hideDateBrowseNav();
             const monthDay = getTodayMonthDay();
 
             const params = new URLSearchParams();
@@ -2251,6 +2404,7 @@
         }
 
         async function showRecentlyAdded() {
+            hideDateBrowseNav();
             const params = new URLSearchParams();
             params.append("recent", "true");
             params.append("t", Date.now());
@@ -2720,6 +2874,12 @@
             statusMessage.innerText = "Searching...";
             resultsDiv.innerHTML = "";
 
+            if (dateInput) {
+                showDateBrowseNav(dateInput);
+            } else {
+                hideDateBrowseNav();
+            }
+
             const url = `${workerUrl}?${params.toString()}`;
 
             try {
@@ -2843,6 +3003,7 @@
         }
 
         function clearSearch() {
+            hideDateBrowseNav();
             document.getElementById("dateInput").value = "";
             document.getElementById("keywordInput").value = "";
             document.getElementById("monthDayInput").value = "";
