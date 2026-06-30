@@ -819,19 +819,32 @@
             healthMessage.innerText = "Loading health dashboard...";
             content.innerHTML = `
                 <div class="bg-gray-50 border rounded p-3 text-gray-700">
-                    Loading archive health data...
+                    Loading archive health data and Pi heartbeat...
                 </div>
             `;
 
             try {
-                const response = await fetch(`${workerUrl}?health=true&t=${Date.now()}`);
+                const cacheBust = Date.now();
 
-                if (!response.ok) {
+                const [healthResponse, heartbeatResponse] = await Promise.all([
+                    fetch(`${workerUrl}?health=true&t=${cacheBust}`),
+                    fetch(`${workerUrl}?heartbeat=true&t=${cacheBust}`)
+                ]);
+
+                if (!healthResponse.ok) {
                     throw new Error("Failed to fetch health dashboard");
                 }
 
-                const health = await response.json();
-                renderHealthDashboard(health);
+                const health = await healthResponse.json();
+                let heartbeat = null;
+
+                if (heartbeatResponse.ok) {
+                    heartbeat = await heartbeatResponse.json();
+                } else {
+                    console.error("Heartbeat endpoint returned an error:", heartbeatResponse.status);
+                }
+
+                renderHealthDashboard(health, heartbeat);
 
                 healthMessage.innerText = health.generated_at
                     ? `Health data generated ${formatDateTime(health.generated_at)}.`
@@ -896,11 +909,162 @@
             `;
         }
 
-        function renderHealthDashboard(health) {
+        function formatRelativeMinutes(minutes) {
+            const number = Number(minutes);
+
+            if (!Number.isFinite(number)) {
+                return "Unknown";
+            }
+
+            if (number < 1) {
+                return "Just now";
+            }
+
+            if (number < 60) {
+                return `${number} minute${number === 1 ? "" : "s"} ago`;
+            }
+
+            const hours = Math.floor(number / 60);
+            const remainingMinutes = number % 60;
+
+            if (hours < 24) {
+                return remainingMinutes
+                    ? `${hours} hour${hours === 1 ? "" : "s"}, ${remainingMinutes} minute${remainingMinutes === 1 ? "" : "s"} ago`
+                    : `${hours} hour${hours === 1 ? "" : "s"} ago`;
+            }
+
+            const days = Math.floor(hours / 24);
+            const remainingHours = hours % 24;
+
+            return remainingHours
+                ? `${days} day${days === 1 ? "" : "s"}, ${remainingHours} hour${remainingHours === 1 ? "" : "s"} ago`
+                : `${days} day${days === 1 ? "" : "s"} ago`;
+        }
+
+        function formatUptime(seconds) {
+            const totalSeconds = Number(seconds);
+
+            if (!Number.isFinite(totalSeconds) || totalSeconds < 0) {
+                return "—";
+            }
+
+            const totalMinutes = Math.floor(totalSeconds / 60);
+            const days = Math.floor(totalMinutes / 1440);
+            const hours = Math.floor((totalMinutes % 1440) / 60);
+            const minutes = totalMinutes % 60;
+
+            if (days > 0) {
+                return `${days}d ${hours}h ${minutes}m`;
+            }
+
+            if (hours > 0) {
+                return `${hours}h ${minutes}m`;
+            }
+
+            return `${minutes}m`;
+        }
+
+        function getHeartbeatStatusClasses(status) {
+            if (status === "online") {
+                return {
+                    container: "bg-green-50 border-green-200",
+                    badge: "bg-green-700 text-white",
+                    text: "text-green-800"
+                };
+            }
+
+            if (status === "stale") {
+                return {
+                    container: "bg-amber-50 border-amber-200",
+                    badge: "bg-amber-600 text-white",
+                    text: "text-amber-800"
+                };
+            }
+
+            if (status === "offline") {
+                return {
+                    container: "bg-red-50 border-red-200",
+                    badge: "bg-red-700 text-white",
+                    text: "text-red-800"
+                };
+            }
+
+            return {
+                container: "bg-gray-50 border-gray-200",
+                badge: "bg-gray-600 text-white",
+                text: "text-gray-700"
+            };
+        }
+
+        function renderPiHeartbeatCard(heartbeatResponse) {
+            if (!heartbeatResponse) {
+                return `
+                    <div class="bg-gray-50 border rounded p-4 mb-4">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                            <h3 class="font-bold text-gray-900">Pi Runner</h3>
+                            <span class="text-xs font-semibold uppercase tracking-wide px-2 py-1 rounded bg-gray-600 text-white">Unknown</span>
+                        </div>
+
+                        <div class="text-sm text-gray-700">
+                            Heartbeat endpoint could not be loaded. The archive health data below may still be valid, but Pi runner status is unknown.
+                        </div>
+                    </div>
+                `;
+            }
+
+            const heartbeat = heartbeatResponse.heartbeat || {};
+            const status = heartbeatResponse.status || "unknown";
+            const classes = getHeartbeatStatusClasses(status);
+            const statusLabel = status === "online"
+                ? "Online"
+                : status === "stale"
+                    ? "Stale"
+                    : status === "offline"
+                        ? "Offline"
+                        : status === "missing"
+                            ? "Missing"
+                            : "Unknown";
+
+            return `
+                <div class="${classes.container} border rounded p-4 mb-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div>
+                            <h3 class="font-bold text-gray-900">Pi Runner</h3>
+                            <div class="text-sm ${classes.text}">${escapeHtml(heartbeatResponse.message || "Pi heartbeat status loaded.")}</div>
+                        </div>
+
+                        <span class="text-xs font-semibold uppercase tracking-wide px-2 py-1 rounded ${classes.badge}">
+                            ${escapeHtml(statusLabel)}
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 text-sm text-gray-700 mb-3">
+                        <div><span class="font-semibold">Last check-in:</span> ${escapeHtml(formatRelativeMinutes(heartbeatResponse.age_minutes))}</div>
+                        <div><span class="font-semibold">Exact time:</span> ${escapeHtml(formatHealthDateTime(heartbeat.last_seen_at))}</div>
+                        <div><span class="font-semibold">Disk used:</span> ${heartbeat.disk_used_percent === null || heartbeat.disk_used_percent === undefined ? "—" : `${escapeHtml(formatNumber(heartbeat.disk_used_percent))}%`}</div>
+                        <div><span class="font-semibold">Uptime:</span> ${escapeHtml(formatUptime(heartbeat.uptime_seconds))}</div>
+                        <div><span class="font-semibold">Hostname:</span> ${escapeHtml(heartbeat.hostname || "—")}</div>
+                        <div><span class="font-semibold">Local IP:</span> ${escapeHtml(heartbeat.local_ip || "—")}</div>
+                        <div><span class="font-semibold">Load average:</span> ${escapeHtml(heartbeat.load_average || "—")}</div>
+                        <div><span class="font-semibold">Notes:</span> ${escapeHtml(heartbeat.notes || "—")}</div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-2 text-xs text-gray-600">
+                        <div><span class="font-semibold">Recent YouTube log:</span> ${escapeHtml(formatHealthDateTime(heartbeat.recent_log_updated_at))}</div>
+                        <div><span class="font-semibold">Historical backfill log:</span> ${escapeHtml(formatHealthDateTime(heartbeat.same_date_log_updated_at))}</div>
+                        <div><span class="font-semibold">Podcast RSS log:</span> ${escapeHtml(formatHealthDateTime(heartbeat.podcast_log_updated_at))}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderHealthDashboard(health, heartbeat = null) {
             const content = document.getElementById("healthDashboardContent");
             const latestErrorText = formatHealthError(health);
 
             content.innerHTML = `
+                ${renderPiHeartbeatCard(heartbeat)}
+
                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
                     ${renderHealthMetricCard("YouTube Videos", formatNumber(health.youtube_video_count))}
                     ${renderHealthMetricCard("Podcast Episodes", formatNumber(health.podcast_episode_count))}
